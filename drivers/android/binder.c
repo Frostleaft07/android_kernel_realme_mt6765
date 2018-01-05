@@ -705,7 +705,8 @@ enum {
 	BINDER_LOOPER_STATE_EXITED      = 0x04,
 	BINDER_LOOPER_STATE_INVALID     = 0x08,
 	BINDER_LOOPER_STATE_WAITING     = 0x10,
-	BINDER_LOOPER_STATE_POLL        = 0x20,
+	BINDER_LOOPER_STATE_NEED_RETURN = 0x20,
+	BINDER_LOOPER_STATE_POLL	= 0x40,
 };
 
 /**
@@ -5595,7 +5596,7 @@ static int binder_thread_release(struct binder_proc *proc,
 	 * If this thread used poll, make sure we remove the waitqueue
 	 * from any epoll data structures holding it with POLLFREE.
 	 * waitqueue_active() is safe to use here because we're holding
-	 * the inner lock.
+	 * the global lock.
 	 */
 	if ((thread->looper & BINDER_LOOPER_STATE_POLL) &&
 	    waitqueue_active(&thread->wait)) {
@@ -5603,15 +5604,6 @@ static int binder_thread_release(struct binder_proc *proc,
 	}
 
 	binder_inner_proc_unlock(thread->proc);
-
-	/*
-	 * This is needed to avoid races between wake_up_poll() above and
-	 * and ep_remove_waitqueue() called for other reasons (eg the epoll file
-	 * descriptor being closed); ep_remove_waitqueue() holds an RCU read
-	 * lock, so we can be sure it's done after calling synchronize_rcu().
-	 */
-	if (thread->looper & BINDER_LOOPER_STATE_POLL)
-		synchronize_rcu();
 
 	if (send_reply)
 		binder_send_failed_reply(send_reply, BR_DEAD_REPLY);
@@ -5633,7 +5625,9 @@ static unsigned int binder_poll(struct file *filp,
 
 	binder_inner_proc_lock(thread->proc);
 	thread->looper |= BINDER_LOOPER_STATE_POLL;
-	wait_for_proc_work = binder_available_for_proc_work_ilocked(thread);
+
+	wait_for_proc_work = thread->transaction_stack == NULL &&
+		list_empty(&thread->todo) && thread->return_error == BR_OK;
 
 	binder_inner_proc_unlock(thread->proc);
 
