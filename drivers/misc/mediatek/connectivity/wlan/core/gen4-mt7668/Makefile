@@ -160,7 +160,7 @@ endif
 #obj-y += $(MODULE_NAME).o
 #endif
 MODULE_NAME := wlan_drv_gen4_mt7668
-obj-m += $(MODULE_NAME).o
+obj-y += $(MODULE_NAME).o
 
 # ---------------------------------------------------
 # Directory List

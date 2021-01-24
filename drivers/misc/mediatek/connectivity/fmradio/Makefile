@@ -12,14 +12,6 @@
 #
 
 ###############################################################################
-# Necessary Check
-
-ifeq ($(AUTOCONF_H),)
-    $(error AUTOCONF_H is not defined)
-endif
-
-ccflags-y += -imacros $(AUTOCONF_H)
-
 # Force build fail on modpost warning
 KBUILD_MODPOST_FAIL_ON_WARNINGS := y
 ###############################################################################
@@ -56,8 +48,8 @@ ifeq ($(CONFIG_MTK_FM_CHIP),)
 endif
 
     MODULE_NAME := fmradio_drv
-    obj-m += $(MODULE_NAME).o
-    WMT_SRC_FOLDER := $(TOP)/vendor/mediatek/kernel_modules/connectivity/common
+    obj-y += $(MODULE_NAME).o
+    WMT_SRC_FOLDER := $(srctree)/drivers/misc/mediatek/connectivity/common
 
     FM_CHIP_MACRO := $(subst ",,$(CONFIG_MTK_FM_CHIP))
     FM_CHIP := $(subst _FM,,$(subst MT,mt,$(subst ",,$(CONFIG_MTK_FM_CHIP))))

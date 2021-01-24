@@ -168,7 +168,7 @@ MODULE_NAME := wlan_drv_gen2
 #obj-$(CONFIG_MTK_COMBO_WIFI) += $(MODULE_NAME).o
 
 #if CONFIG_MTK_COMBO_WIFI=m ==> obj-m means ko module, not build in obj-y
-obj-m += $(MODULE_NAME).o
+obj-y += $(MODULE_NAME).o
 
 # ---------------------------------------------------
 # Directory List
