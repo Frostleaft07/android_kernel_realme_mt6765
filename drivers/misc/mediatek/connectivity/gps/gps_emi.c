@@ -29,6 +29,7 @@
 #include <linux/printk.h>
 #include <linux/version.h>
 #include <asm/memblock.h>
+#define EMI_MPU_PROTECTION_IS_READY  1
 #if EMI_MPU_PROTECTION_IS_READY
 #include <mt_emi_api.h>
 #endif
@@ -406,7 +407,7 @@ static const struct of_device_id apgps_of_ids[] = {
 	{}
 };
 #endif
-static struct platform_driver gps_emi_driver = {
+__attribute__((unused)) static struct platform_driver gps_emi_driver = {
 	.probe = gps_emi_probe,
 	.remove = gps_emi_remove,
 #if defined(CONFIG_PM)
@@ -425,10 +426,10 @@ static struct platform_driver gps_emi_driver = {
 /*****************************************************************************/
 static int __init gps_emi_mod_init(void)
 {
-	GPS_ERR("gps emi mod register begin");
-	int ret = 0;
-	int err = 0;
+        int ret = 0;
+        int err = 0;
 
+	GPS_ERR("gps emi mod register begin");
 	devobj = kzalloc(sizeof(*devobj), GFP_KERNEL);
 	if (devobj == NULL) {
 		err = -ENOMEM;
