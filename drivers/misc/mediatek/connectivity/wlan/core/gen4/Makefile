@@ -124,7 +124,7 @@ ifneq ($(PLATFORM_FLAGS), )
 endif
 
 MODULE_NAME := wlan_drv_gen4
-obj-m += $(MODULE_NAME).o
+obj-y += $(MODULE_NAME).o
 # ---------------------------------------------------
 # Directory List
 # ---------------------------------------------------

@@ -10,14 +10,6 @@
 # published by the Free Software Foundation.
 
 ###############################################################################
-# Necessary Check
-
-ifeq ($(AUTOCONF_H),)
-    $(error AUTOCONF_H is not defined)
-endif
-
-ccflags-y += -imacros $(AUTOCONF_H)
-
 ifeq ($(CONFIG_MTK_COMBO_CHIP),)
     $(error CONFIG_MTK_COMBO_CHIP not defined)
 endif
@@ -60,8 +52,8 @@ ccflags-y += -I$(srctree)/drivers/devfreq
 ###############################################################################
 
 MODULE_NAME := gps_drv
-obj-m += $(MODULE_NAME).o
-WMT_SRC_FOLDER := $(TOP)/vendor/mediatek/kernel_modules/connectivity/common
+obj-y += $(MODULE_NAME).o
+WMT_SRC_FOLDER := $(srctree)/drivers/misc/mediatek/connectivity/common
 
 ifneq ($(filter "CONSYS_%",$(CONFIG_MTK_COMBO_CHIP)),)
         ccflags-y += -DSOC_CO_CLOCK_FLAG=1
