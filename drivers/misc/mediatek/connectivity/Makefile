@@ -36,7 +36,19 @@ endif
     $(MODULE_NAME)-objs += common/connectivity_build_in_adapter.o
     $(MODULE_NAME)-objs += common/wmt_build_in_adapter.o
 
-
+    # for gen4m options
+    export CONFIG_MTK_COMBO_WIFI_HIF=axi
+    export MTK_COMBO_CHIP=CONNAC
+    export WLAN_CHIP_ID=6765
+    export MTK_ANDROID_WMT=y
+    # Do build-in for xxx.c checking
+    subdir-ccflags-y += -D MTK_WCN_REMOVE_KERNEL_MODULE
+    subdir-ccflags-y += -D MTK_WCN_BUILT_IN_DRIVER
+    obj-y += bt/mt66xx/
+    obj-y += common/
+    obj-y += wlan/adaptor/
+    obj-y += wlan/core/gen4m/
+    obj-y += gps/
     # Do build-in for Makefile checking
     # export CONFIG_WLAN_DRV_BUILD_IN=y
 
