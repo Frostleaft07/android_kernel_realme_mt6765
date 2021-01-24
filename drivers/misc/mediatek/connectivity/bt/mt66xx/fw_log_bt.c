@@ -51,8 +51,7 @@ static unsigned char g_log_on = OFF;
 static unsigned char g_log_level = DEFAULT_LEVEL;
 static unsigned char g_log_current = OFF;
 
-#define BT_LOG_BUFFER_SIZE  2048
-static INT32 i_buf[BT_LOG_BUFFER_SIZE];
+#define BT_LOG_BUFFER_SIZE 512
 
 static struct cdev log_cdev;
 #if CREATE_NODE_DYNAMIC
@@ -205,7 +204,6 @@ static ssize_t fw_log_bt_write(struct file *filp, const char __user *buf, size_t
 	UINT8 val[BT_LOG_BUFFER_SIZE] = {0};
 	UINT8 tmp = 0;
 	size_t i = 0, j = 0, k = 0;
-	int retry = 0;
 
 	if(count >= BT_LOG_BUFFER_SIZE) {
 		BT_LOG_PR_ERR("write count %zd exceeds max buffer size %d", count, BT_LOG_BUFFER_SIZE);

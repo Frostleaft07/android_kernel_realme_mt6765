@@ -581,9 +581,10 @@ const struct file_operations BT_fops = {
 
 static int BT_init(void)
 {
-	dev_t dev = MKDEV(BT_major, 0);
+	dev_t dev;
 	INT32 alloc_ret = 0;
 	INT32 cdev_err = 0;
+	dev = MKDEV(BT_major, 0);
 
 	/* Initialize wait queue */
 	init_waitqueue_head(&(inq));
@@ -643,12 +644,13 @@ error:
 
 static void BT_exit(void)
 {
+	dev_t dev;
 
 #ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
 	fw_log_bt_exit();
 #endif
 
-	dev_t dev = MKDEV(BT_major, 0);
+	dev = MKDEV(BT_major, 0);
 	/* Destroy wake lock*/
 	wakeup_source_trash(&bt_wakelock);
 
