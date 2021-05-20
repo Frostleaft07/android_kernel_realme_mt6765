@@ -3411,6 +3411,7 @@ static void ext4_set_resv_clusters(struct super_block *sb)
 	atomic64_set(&sbi->s_resv_clusters, resv_clusters);
 }
 
+extern unsigned int sysctl_ext4_async_discard_enable;
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 {
 	char *orig_data = kstrdup(data, GFP_KERNEL);
@@ -3608,7 +3609,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 #if defined(VENDOR_EDIT) && defined(CONFIG_EXT4_ASYNC_DISCARD_SUPPORT)
 //yh@PSW.BSP.Storage.EXT4, 2019-02-15 add for ext4 async discard suppot
-	if (test_opt(sb, ASYNC_DISCARD)&&test_opt(sb,DISCARD)) {
+    if (sysctl_ext4_async_discard_enable && test_opt(sb,DISCARD)) {
         clear_opt(sb, DISCARD);
         ext4_msg(sb, KERN_WARNING, "mount option discard/async_discard conflict, use async_discard default");        
     }
@@ -4316,7 +4317,7 @@ no_journal:
 	if (test_opt(sb, DISCARD) 
 #if defined(VENDOR_EDIT) && defined(CONFIG_EXT4_ASYNC_DISCARD_SUPPORT)
 //yh@PSW.BSP.Storage.EXT4, 2019-02-16 add for ext4 async discard suppot
-        || test_opt(sb, ASYNC_DISCARD)
+        || sysctl_ext4_async_discard_enable
 #endif
     ) {
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
@@ -4344,7 +4345,7 @@ no_journal:
 	kfree(orig_data);
 #if defined(VENDOR_EDIT) && defined(CONFIG_EXT4_ASYNC_DISCARD_SUPPORT)
 //yh@PSW.BSP.Storage.EXT4, 2018-11-26 add for ext4 async discard suppot
-	if (test_opt(sb, ASYNC_DISCARD)) {
+	if (sysctl_ext4_async_discard_enable) {
 		sbi->interval_time = DEF_IDLE_INTERVAL;
 		err = create_discard_cmd_control(sbi);
 		if (err)
