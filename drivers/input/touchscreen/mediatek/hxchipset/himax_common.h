@@ -273,7 +273,7 @@ enum cell_type {
 };
 
 #if defined(HX_SMART_WAKEUP)
-#define HX_KEY_DOUBLE_CLICK		KEY_F4
+#define HX_KEY_DOUBLE_CLICK		KEY_WAKEUP
 #define HX_KEY_UP							KEY_UP
 #define HX_KEY_DOWN						KEY_DOWN
 #define HX_KEY_LEFT						KEY_LEFT
