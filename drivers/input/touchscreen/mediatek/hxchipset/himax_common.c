@@ -2644,7 +2644,7 @@ int himax_input_register(struct himax_ts_data *ts)
 	set_bit(KEY_HOME, ts->input_dev->keybit);
 	set_bit(KEY_MENU, ts->input_dev->keybit);
 	set_bit(KEY_SEARCH, ts->input_dev->keybit);
-	set_bit(KEY_F4, ts->input_dev->keybit);
+	set_bit(KEY_WAKEUP, ts->input_dev->keybit);
 
 #if defined(HX_SMART_WAKEUP)
 	for (i = 0; i < GEST_SUP_NUM; i++)
@@ -3201,7 +3201,7 @@ static void himax_wake_event_report(void)
 		I("%s: Entering!\n", __func__);
 
 #ifdef OPPO_PROC_NODE
-		KEY_EVENT = KEY_F4;
+		KEY_EVENT = KEY_WAKEUP;
 #endif
 
 
