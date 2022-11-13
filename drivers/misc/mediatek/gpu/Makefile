@@ -25,3 +25,6 @@ else ifneq ($(word 1,$(MTK_GPU_VERSION)),)
 else
     obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 endif
+
+# Suppress int conversion error
+subdir-ccflags-y := $(call cc-disable-warning, int-conversion)
