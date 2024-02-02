@@ -1,0 +1,20 @@
+#!/bin/bash
+export KBUILD_BUILD_USER=Frostleaf
+export KBUILD_BUILD_HOST=Darkness
+echo $KBUILD_BUILD_USER
+echo $KBUILD_BUILD_HOST
+echo -e "done?"
+sleep 2s
+
+make CC=clang ARCH=arm64 O=out RMX2185_defconfig
+make CC=clang ARCH=arm64 O=out -j16 \
+        HEADER_ARCH=arm64 \
+        SUBARCH=arm64 \
+        CXX=c++ \
+    AR=llvm-ar \
+    NM=llvm-nm \
+    OBJDUMP=llvm-objdump \
+    STRIP=llvm-strip \
+      	CROSS_COMPILE=aarch64-linux-gnu- \
+	CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+        CLANG_TRIPLE=aarch64-linux-gnu-
