@@ -42,8 +42,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
            files: | 
-            workspace/out/arch/arm64/boot/Image.gz-dtb
-            workspace/out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/Image
            name: Kernel-${{ github.run_id }}
            tag_name: ${{ github.run_id }}
         env:
