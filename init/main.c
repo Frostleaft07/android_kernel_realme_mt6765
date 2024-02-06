@@ -511,20 +511,15 @@ asmlinkage __visible void __init start_kernel(void)
 	smp_setup_processor_id();
 	debug_objects_early_init();
 
-	/*
-	 * Set up the the initial canary ASAP:
-	 */
-	boot_init_stack_canary();
-
 	cgroup_init_early();
 
 	local_irq_disable();
 	early_boot_irqs_disabled = true;
 
-/*
- * Interrupts are still disabled. Do necessary setups, then
- * enable them
- */
+	/*
+	 * Interrupts are still disabled. Do necessary setups, then
+	 * enable them.
+	 */
 	boot_cpu_init();
 	page_address_init();
 	pr_notice("%s", linux_banner);
@@ -536,7 +531,7 @@ asmlinkage __visible void __init start_kernel(void)
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 	boot_cpu_hotplug_init();
 
-	build_all_zonelists(NULL, NULL);
+	build_all_zonelists(NULL, NULL, false);
 	page_alloc_init();
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
@@ -749,7 +744,7 @@ static int __init initcall_blacklist(char *str)
 		}
 	} while (str_entry);
 
-	return 0;
+	return 1;
 }
 
 static bool __init_or_module initcall_blacklisted(initcall_t fn)
@@ -1003,7 +998,9 @@ static noinline void __init kernel_init_freeable(void);
 bool rodata_enabled __ro_after_init = true;
 static int __init set_debug_rodata(char *str)
 {
-	return strtobool(str, &rodata_enabled);
+	if (strtobool(str, &rodata_enabled))
+		pr_warn("Invalid option string for rodata: '%s'\n", str);
+	return 1;
 }
 __setup("rodata=", set_debug_rodata);
 #endif
@@ -1095,7 +1092,7 @@ static noinline void __init kernel_init_freeable(void)
 	 */
 	set_cpus_allowed_ptr(current, cpu_all_mask);
 
-	cad_pid = task_pid(current);
+	cad_pid = get_pid(task_pid(current));
 
 	smp_prepare_cpus(setup_max_cpus);
 

@@ -159,6 +159,7 @@ struct ion_handle_debug {
  */
 struct ion_handle {
 	struct kref ref;
+	unsigned int user_ref_count;
 	struct ion_client *client;
 	struct ion_buffer *buffer;
 	struct rb_node node;
@@ -472,6 +473,9 @@ int ion_sync_for_device(struct ion_client *client, int fd);
 
 struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
 						int id);
+
+bool ion_handle_validate(struct ion_client *client,
+			 struct ion_handle *handle);
 
 void ion_free_nolock(struct ion_client *client, struct ion_handle *handle);
 

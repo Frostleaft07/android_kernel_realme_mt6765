@@ -560,9 +560,8 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 	if (!skb_is_gso(skb) && (iph->frag_off & htons(IP_DF)) &&
 	    mtu < ntohs(iph->tot_len)) {
 		netdev_dbg(dev, "packet too big, fragmentation needed\n");
-		memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
-		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
-			  htonl(mtu));
+		icmp_ndo_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+			      htonl(mtu));
 		goto err_rt;
 	}
 
@@ -782,11 +781,13 @@ static int gtp_hashtable_new(struct gtp_dev *gtp, int hsize)
 {
 	int i;
 
-	gtp->addr_hash = kmalloc(sizeof(struct hlist_head) * hsize, GFP_KERNEL);
+	gtp->addr_hash = kmalloc(sizeof(struct hlist_head) * hsize,
+				 GFP_KERNEL | __GFP_NOWARN);
 	if (gtp->addr_hash == NULL)
 		return -ENOMEM;
 
-	gtp->tid_hash = kmalloc(sizeof(struct hlist_head) * hsize, GFP_KERNEL);
+	gtp->tid_hash = kmalloc(sizeof(struct hlist_head) * hsize,
+				GFP_KERNEL | __GFP_NOWARN);
 	if (gtp->tid_hash == NULL)
 		goto err1;
 
@@ -834,7 +835,9 @@ static int gtp_encap_enable(struct net_device *dev, struct gtp_dev *gtp,
 		return -ENOENT;
 	}
 
-	if (sock0->sk->sk_protocol != IPPROTO_UDP) {
+	if (sock0->sk->sk_protocol != IPPROTO_UDP ||
+	    sock0->sk->sk_type != SOCK_DGRAM ||
+	    (sock0->sk->sk_family != AF_INET && sock0->sk->sk_family != AF_INET6)) {
 		netdev_dbg(dev, "socket fd=%d not UDP\n", fd_gtp0);
 		err = -EINVAL;
 		goto err1;
@@ -1102,11 +1105,11 @@ static struct genl_family gtp_genl_family = {
 };
 
 static int gtp_genl_fill_info(struct sk_buff *skb, u32 snd_portid, u32 snd_seq,
-			      u32 type, struct pdp_ctx *pctx)
+			      int flags, u32 type, struct pdp_ctx *pctx)
 {
 	void *genlh;
 
-	genlh = genlmsg_put(skb, snd_portid, snd_seq, &gtp_genl_family, 0,
+	genlh = genlmsg_put(skb, snd_portid, snd_seq, &gtp_genl_family, flags,
 			    type);
 	if (genlh == NULL)
 		goto nlmsg_failure;
@@ -1202,8 +1205,8 @@ static int gtp_genl_get_pdp(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock;
 	}
 
-	err = gtp_genl_fill_info(skb2, NETLINK_CB(skb).portid,
-				 info->snd_seq, info->nlhdr->nlmsg_type, pctx);
+	err = gtp_genl_fill_info(skb2, NETLINK_CB(skb).portid, info->snd_seq,
+				 0, info->nlhdr->nlmsg_type, pctx);
 	if (err < 0)
 		goto err_unlock_free;
 
@@ -1236,18 +1239,16 @@ static int gtp_genl_dump_pdp(struct sk_buff *skb,
 		else
 			last_gtp = NULL;
 
-		for (i = k; i < gtp->hash_size; i++) {
-			hlist_for_each_entry_rcu(pctx, &gtp->tid_hash[i], hlist_tid) {
-				if (tid && tid != pctx->u.tid)
-					continue;
-				else
-					tid = 0;
-
-				ret = gtp_genl_fill_info(skb,
-							 NETLINK_CB(cb->skb).portid,
-							 cb->nlh->nlmsg_seq,
-							 cb->nlh->nlmsg_type, pctx);
-				if (ret < 0) {
+		for (i = bucket; i < gtp->hash_size; i++) {
+			j = 0;
+			hlist_for_each_entry_rcu(pctx, &gtp->tid_hash[i],
+						 hlist_tid) {
+				if (j >= skip &&
+				    gtp_genl_fill_info(skb,
+					    NETLINK_CB(cb->skb).portid,
+					    cb->nlh->nlmsg_seq,
+					    NLM_F_MULTI,
+					    cb->nlh->nlmsg_type, pctx)) {
 					cb->args[0] = i;
 					cb->args[1] = pctx->u.tid;
 					cb->args[2] = (unsigned long)gtp;

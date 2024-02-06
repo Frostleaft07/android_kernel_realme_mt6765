@@ -1086,6 +1086,7 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	struct macsec_rx_sa *rx_sa;
 	struct macsec_rxh_data *rxd;
 	struct macsec_dev *macsec;
+	unsigned int len;
 	sci_t sci;
 	u32 pn;
 	bool cbit;
@@ -1241,9 +1242,10 @@ deliver:
 	macsec_rxsc_put(rx_sc);
 
 	skb_orphan(skb);
+	len = skb->len;
 	ret = gro_cells_receive(&macsec->gro_cells, skb);
 	if (ret == NET_RX_SUCCESS)
-		count_rx(dev, skb->len);
+		count_rx(dev, len);
 	else
 		macsec->secy.netdev->stats.rx_dropped++;
 
@@ -2871,6 +2873,11 @@ static void macsec_dev_set_rx_mode(struct net_device *dev)
 	dev_uc_sync(real_dev, dev);
 }
 
+static sci_t dev_to_sci(struct net_device *dev, __be16 port)
+{
+	return make_sci(dev->dev_addr, port);
+}
+
 static int macsec_set_mac_address(struct net_device *dev, void *p)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
@@ -2892,6 +2899,7 @@ static int macsec_set_mac_address(struct net_device *dev, void *p)
 
 out:
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	macsec->secy.sci = dev_to_sci(dev, MACSEC_PORT_ES);
 	return 0;
 }
 
@@ -2976,6 +2984,7 @@ static const struct device_type macsec_type = {
 
 static const struct nla_policy macsec_rtnl_policy[IFLA_MACSEC_MAX + 1] = {
 	[IFLA_MACSEC_SCI] = { .type = NLA_U64 },
+	[IFLA_MACSEC_PORT] = { .type = NLA_U16 },
 	[IFLA_MACSEC_ICV_LEN] = { .type = NLA_U8 },
 	[IFLA_MACSEC_CIPHER_SUITE] = { .type = NLA_U64 },
 	[IFLA_MACSEC_WINDOW] = { .type = NLA_U32 },
@@ -3160,11 +3169,6 @@ static bool sci_exists(struct net_device *dev, sci_t sci)
 	return false;
 }
 
-static sci_t dev_to_sci(struct net_device *dev, __be16 port)
-{
-	return make_sci(dev->dev_addr, port);
-}
-
 static int macsec_add_dev(struct net_device *dev, sci_t sci, u8 icv_len)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
@@ -3221,6 +3225,15 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	dev->priv_flags |= IFF_MACSEC;
 
 	macsec->real_dev = real_dev;
+
+	/* send_sci must be set to true when transmit sci explicitly is set */
+	if ((data && data[IFLA_MACSEC_SCI]) &&
+	    (data && data[IFLA_MACSEC_INC_SCI])) {
+		u8 send_sci = !!nla_get_u8(data[IFLA_MACSEC_INC_SCI]);
+
+		if (!send_sci)
+			return -EINVAL;
+	}
 
 	if (data && data[IFLA_MACSEC_ICV_LEN])
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);

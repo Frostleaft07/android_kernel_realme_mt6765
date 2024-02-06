@@ -774,4 +774,7 @@ source "drivers/spi/mediatek/Kconfig"
 
 # (slave support would go here)
 
+config SPI_DYNAMIC
+	def_bool ACPI || OF_DYNAMIC || SPI_SLAVE
+
 endif # SPI

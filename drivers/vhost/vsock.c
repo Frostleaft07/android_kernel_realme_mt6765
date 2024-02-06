@@ -404,7 +404,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 		else
 			virtio_transport_free_pkt(pkt);
 
-		vhost_add_used(vq, head, sizeof(pkt->hdr) + len);
+		vhost_add_used(vq, head, 0);
 		added = true;
 	}
 
@@ -457,6 +457,11 @@ static int vhost_vsock_start(struct vhost_vsock *vsock)
 
 		mutex_unlock(&vq->mutex);
 	}
+
+	/* Some packets may have been queued before the device was started,
+	 * let's kick the send worker to send them.
+	 */
+	vhost_work_queue(&vsock->dev, &vsock->send_pkt_work);
 
 	mutex_unlock(&vsock->dev.mutex);
 	return 0;

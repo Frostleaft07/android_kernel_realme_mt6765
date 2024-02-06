@@ -147,6 +147,9 @@ enum zone_stat_item {
 	NUMA_OTHER,		/* allocation from other node */
 #endif
 	NR_FREE_CMA_PAGES,
+#ifdef CONFIG_UKSM
+	NR_UKSM_ZERO_PAGES,
+#endif
 #ifdef VENDOR_EDIT
 /*Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-09-25, add ion cached account*/
 	NR_IONCACHE_PAGES,
@@ -776,7 +779,8 @@ static inline bool is_dev_zone(const struct zone *zone)
 #include <linux/memory_hotplug.h>
 
 extern struct mutex zonelists_mutex;
-void build_all_zonelists(pg_data_t *pgdat, struct zone *zone);
+void build_all_zonelists(pg_data_t *pgdat, struct zone *zone,
+			 bool hotplug_context);
 void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
 bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 			 int classzone_idx, unsigned int alloc_flags,
@@ -868,7 +872,7 @@ static inline int is_highmem_idx(enum zone_type idx)
 }
 
 /**
- * is_highmem - helper function to quickly check if a struct zone is a 
+ * is_highmem - helper function to quickly check if a struct zone is a
  *              highmem zone or not.  This is an attempt to keep references
  *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
  * @zone - pointer to struct zone variable

@@ -982,6 +982,9 @@ const char * const vmstat_text[] = {
 	"nr_dirtied",
 	"nr_written",
 
+#ifdef CONFIG_UKSM
+	"nr_uksm_zero_pages",
+#endif
 	/* enum writeback_stat_item counters */
 	"nr_dirty_threshold",
 	"nr_dirty_background_threshold",
@@ -1192,6 +1195,9 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
 			list_for_each(curr, &area->free_list[mtype])
 				freecount++;
 			seq_printf(m, "%6lu ", freecount);
+			spin_unlock_irq(&zone->lock);
+			cond_resched();
+			spin_lock_irq(&zone->lock);
 		}
 		seq_putc(m, '\n');
 	}

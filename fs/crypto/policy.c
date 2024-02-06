@@ -72,6 +72,9 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 	if (copy_from_user(&policy, arg, sizeof(policy)))
 		return -EFAULT;
 
+	if (copy_from_user(&policy, arg, sizeof(policy)))
+		return -EFAULT;
+
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
@@ -168,8 +171,7 @@ EXPORT_SYMBOL(fscrypt_ioctl_get_policy);
  * malicious offline violations of this constraint, while the link and rename
  * checks are needed to prevent online violations of this constraint.
  *
- * Return: 1 if permitted, 0 if forbidden.  If forbidden, the caller must fail
- * the filesystem operation with EPERM.
+ * Return: 1 if permitted, 0 if forbidden.
  */
 int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 {

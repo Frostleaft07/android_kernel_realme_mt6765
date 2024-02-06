@@ -2017,7 +2017,7 @@ void show_code(struct pt_regs *regs)
 		start += opsize;
 		pr_cont("%s", buffer);
 		ptr = buffer;
-		ptr += sprintf(ptr, "\n\t  ");
+		ptr += sprintf(ptr, "\n          ");
 		hops++;
 	}
 	pr_cont("\n");
@@ -2025,7 +2025,7 @@ void show_code(struct pt_regs *regs)
 
 void print_fn_code(unsigned char *code, unsigned long len)
 {
-	char buffer[64], *ptr;
+	char buffer[128], *ptr;
 	int opsize, i;
 
 	while (len) {

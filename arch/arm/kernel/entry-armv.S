@@ -631,11 +631,9 @@ call_fpe:
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 	reteq	lr
 	and	r8, r0, #0x00000f00		@ mask out CP number
- THUMB(	lsr	r8, r8, #8		)
 	mov	r7, #1
-	add	r6, r10, #TI_USED_CP
- ARM(	strb	r7, [r6, r8, lsr #8]	)	@ set appropriate used_cp[]
- THUMB(	strb	r7, [r6, r8]		)	@ set appropriate used_cp[]
+	add	r6, r10, r8, lsr #8		@ add used_cp[] array offset first
+	strb	r7, [r6, #TI_USED_CP]		@ set appropriate used_cp[]
 #ifdef CONFIG_IWMMXT
 	@ Test if we need to give access to iWMMXt coprocessors
 	ldr	r5, [r10, #TI_FLAGS]
@@ -644,7 +642,7 @@ call_fpe:
 	bcs	iwmmxt_task_enable
 #endif
  ARM(	add	pc, pc, r8, lsr #6	)
- THUMB(	lsl	r8, r8, #2		)
+ THUMB(	lsr	r8, r8, #6		)
  THUMB(	add	pc, r8			)
 	nop
 
@@ -1063,6 +1061,44 @@ vector_\name:
  ARM(	ldr	lr, [pc, lr, lsl #2]	)
 	movs	pc, lr			@ branch to handler in SVC mode
 ENDPROC(vector_\name)
+
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+	.subsection 1
+	.align 5
+vector_bhb_loop8_\name:
+	.if \correction
+	sub	lr, lr, #\correction
+	.endif
+
+	@ Save r0, lr_<exception> (parent PC)
+	stmia	sp, {r0, lr}
+
+	@ bhb workaround
+	mov	r0, #8
+3:	W(b)	. + 4
+	subs	r0, r0, #1
+	bne	3b
+	dsb
+	isb
+	b	2b
+ENDPROC(vector_bhb_loop8_\name)
+
+vector_bhb_bpiall_\name:
+	.if \correction
+	sub	lr, lr, #\correction
+	.endif
+
+	@ Save r0, lr_<exception> (parent PC)
+	stmia	sp, {r0, lr}
+
+	@ bhb workaround
+	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
+	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ which gives a "context synchronisation".
+	b	2b
+ENDPROC(vector_bhb_bpiall_\name)
+	.previous
+#endif
 
 	.align	2
 	@ handler addresses follow this label

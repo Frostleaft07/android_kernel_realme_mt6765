@@ -1,7 +1,6 @@
 #!/bin/sh
 #
-# This script adds local version information from the version
-# control systems git, mercurial (hg), and subversion (svn).
+# This script adds local version information without SCM details.
 #
 # If something goes wrong, send a mail to the kernel build mailing list
 # (see MAINTAINERS) and CC Nico Schottelius
@@ -9,97 +8,54 @@
 #
 
 usage() {
-	echo "Usage: $0 [--save-scmversion] [srctree]" >&2
-	exit 1
+    echo "Usage: $0 [--save-scmversion] [srctree]" >&2
+    exit 1
 }
 
 scm_only=false
 srctree=.
 
 if test "$1" = "--save-scmversion"; then
-	scm_only=true
-	shift
+    scm_only=true
+    shift
 fi
 
 if test $# -gt 0; then
-	srctree=$1
-	shift
+    srctree=$1
+    shift
 fi
 
 if test $# -gt 0 -o ! -d "$srctree"; then
-	usage
+    usage
 fi
 
 scm_version() {
-	local short
-	short=false
-
-	cd "$srctree" || exit 1
-
-	# Check for git and a git repo.
-	if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
-		head=$(git rev-parse --verify --short HEAD 2>/dev/null); then
-
-		# If we are at a tagged commit, ignore it.
-		if [ -z "$(git describe --exact-match 2>/dev/null)" ]; then
-
-			# If we are past a tagged commit, pretty print it.
-			if atag=$(git describe 2>/dev/null); then
-				echo "$atag" | awk -F- '{printf("-%05d", $(NF-1))}'
-			fi
-		fi
-
-		# Check for uncommitted changes.
-		if git diff-index --quiet HEAD --; then
-			echo "-dirty"
-		fi
-	fi
-}
-
-collect_files()
-{
-	local file res
-
-	for file; do
-		case "$file" in
-		*\~*)
-			continue
-			;;
-		esac
-		if test -e "$file"; then
-			res="$res$(cat "$file")"
-		fi
-	done
-	echo "$res"
+    # You can customize or add logic here if needed
+    echo ""
 }
 
 if $scm_only; then
-	if test ! -e .scmversion; then
-		res=$(scm_version)
-		echo "$res" >.scmversion
-	fi
-	exit
+    if test ! -e .scmversion; then
+        res=$(scm_version)
+        echo "$res" >.scmversion
+    fi
+    exit
 fi
 
 if test -e include/config/auto.conf; then
-	. include/config/auto.conf
+    . include/config/auto.conf
 else
-	echo "Error: kernelrelease not valid - run 'make prepare' to update it" >&2
-	exit 1
-fi
-
-# localversion* files in the build and source directory
-res="$(collect_files localversion*)"
-if test ! "$srctree" -ef .; then
-	res="$res$(collect_files "$srctree"/localversion*)"
+    echo "Error: kernelrelease not valid - run 'make prepare' to update it" >&2
+    exit 1
 fi
 
 # CONFIG_LOCALVERSION and LOCALVERSION (if set)
 res="${CONFIG_LOCALVERSION}${LOCALVERSION}"
 
-# scm version string if not at a tagged commit
+# scm version string (if needed)
 if test "$CONFIG_LOCALVERSION_AUTO" = "y"; then
-	res="$res$(scm_version)"
+    res="$res$(scm_version)"
 fi
 
 echo "$res"
+

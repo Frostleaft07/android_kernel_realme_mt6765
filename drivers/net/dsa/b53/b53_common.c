@@ -946,7 +946,7 @@ static int b53_vlan_prepare(struct dsa_switch *ds, int port,
 	if ((is5325(dev) || is5365(dev)) && vlan->vid_begin == 0)
 		return -EOPNOTSUPP;
 
-	if (vlan->vid_end > dev->num_vlans)
+	if (vlan->vid_end >= dev->num_vlans)
 		return -ERANGE;
 
 	b53_enable_vlan(dev, true);
@@ -1109,12 +1109,15 @@ static int b53_arl_read(struct b53_device *dev, u64 mac,
 			u16 vid, struct b53_arl_entry *ent, u8 *idx,
 			bool is_valid)
 {
+	DECLARE_BITMAP(free_bins, B53_ARLTBL_MAX_BIN_ENTRIES);
 	unsigned int i;
 	int ret;
 
 	ret = b53_arl_op_wait(dev);
 	if (ret)
 		return ret;
+
+	bitmap_zero(free_bins, dev->num_arl_entries);
 
 	/* Read the bins */
 	for (i = 0; i < dev->num_arl_entries; i++) {
@@ -1127,12 +1130,20 @@ static int b53_arl_read(struct b53_device *dev, u64 mac,
 			   B53_ARLTBL_DATA_ENTRY(i), &fwd_entry);
 		b53_arl_to_entry(ent, mac_vid, fwd_entry);
 
-		if (!(fwd_entry & ARLTBL_VALID))
+		if (!(fwd_entry & ARLTBL_VALID)) {
+			set_bit(i, free_bins);
 			continue;
+		}
 		if ((mac_vid & ARLTBL_MAC_MASK) != mac)
 			continue;
 		*idx = i;
+		return 0;
 	}
+
+	if (bitmap_weight(free_bins, dev->num_arl_entries) == 0)
+		return -ENOSPC;
+
+	*idx = find_first_bit(free_bins, dev->num_arl_entries);
 
 	return -ENOENT;
 }
@@ -1163,10 +1174,23 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	if (op)
 		return ret;
 
-	/* We could not find a matching MAC, so reset to a new entry */
-	if (ret) {
+	switch (ret) {
+	case -ETIMEDOUT:
+		return ret;
+	case -ENOSPC:
+		dev_dbg(dev->dev, "{%pM,%.4d} no space left in ARL\n",
+			addr, vid);
+		return is_valid ? ret : 0;
+	case -ENOENT:
+		/* We could not find a matching MAC, so reset to a new entry */
+		dev_dbg(dev->dev, "{%pM,%.4d} not found, using idx: %d\n",
+			addr, vid, idx);
 		fwd_entry = 0;
-		idx = 1;
+		break;
+	default:
+		dev_dbg(dev->dev, "{%pM,%.4d} found, using idx: %d\n",
+			addr, vid, idx);
+		break;
 	}
 
 	memset(&ent, 0, sizeof(ent));
@@ -1754,9 +1778,8 @@ static int b53_switch_init(struct b53_device *dev)
 			dev->cpu_port = 5;
 	}
 
-	/* cpu port is always last */
-	dev->num_ports = dev->cpu_port + 1;
 	dev->enabled_ports |= BIT(dev->cpu_port);
+	dev->num_ports = fls(dev->enabled_ports);
 
 	dev->ports = devm_kzalloc(dev->dev,
 				  sizeof(struct b53_port) * dev->num_ports,

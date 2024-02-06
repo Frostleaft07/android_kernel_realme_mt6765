@@ -5424,11 +5424,13 @@ no_delete:
 }
 
 /*
- * this returns the key found in the dir entry in the location pointer.
+ * Return the key found in the dir entry in the location pointer, fill @type
+ * with BTRFS_FT_*, and return 0.
+ *
  * If no dir entries were found, location->objectid is 0.
  */
 static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
-			       struct btrfs_key *location)
+			       struct btrfs_key *location, u8 *type)
 {
 	const char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
@@ -5450,6 +5452,8 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 		goto out_err;
 
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, location);
+	if (!ret)
+		*type = btrfs_dir_type(path->nodes[0], di);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -5740,19 +5744,25 @@ static struct inode *new_simple_dir(struct super_block *s,
 	return inode;
 }
 
+static inline u8 btrfs_inode_type(struct inode *inode)
+{
+	return btrfs_type_by_mode[(inode->i_mode & S_IFMT) >> S_SHIFT];
+}
+
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *sub_root = root;
 	struct btrfs_key location;
+	u8 di_type = 0;
 	int index;
 	int ret = 0;
 
 	if (dentry->d_name.len > BTRFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	ret = btrfs_inode_by_name(dir, dentry, &location);
+	ret = btrfs_inode_by_name(dir, dentry, &location, &di_type);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
@@ -5761,6 +5771,18 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 
 	if (location.type == BTRFS_INODE_ITEM_KEY) {
 		inode = btrfs_iget(dir->i_sb, &location, root, NULL);
+		if (IS_ERR(inode))
+			return inode;
+
+		/* Do extra check against inode mode with di_type */
+		if (btrfs_inode_type(inode) != di_type) {
+			btrfs_crit(root->fs_info,
+"inode mode mismatch with dir: inode mode=0%o btrfs type=%u dir type=%u",
+				  inode->i_mode, btrfs_inode_type(inode),
+				  di_type);
+			iput(inode);
+			return ERR_PTR(-EUCLEAN);
+		}
 		return inode;
 	}
 
@@ -6376,11 +6398,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static inline u8 btrfs_inode_type(struct inode *inode)
-{
-	return btrfs_type_by_mode[(inode->i_mode & S_IFMT) >> S_SHIFT];
-}
-
 /*
  * utility function to add 'inode' into 'parent_inode' with
  * a give name and a given sequence number.
@@ -6966,6 +6983,14 @@ again:
 	extent_start = found_key.offset;
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
+		/* Only regular file could have regular/prealloc extent */
+		if (!S_ISREG(inode->i_mode)) {
+			err = -EUCLEAN;
+			btrfs_crit(root->fs_info,
+		"regular/prealloc extent found for non-regular inode %llu",
+				   btrfs_ino(inode));
+			goto out;
+		}
 		extent_end = extent_start +
 		       btrfs_file_extent_num_bytes(leaf, item);
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
@@ -8495,7 +8520,6 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	bio->bi_private = dip;
 	bio->bi_end_io = btrfs_end_dio_bio;
 	btrfs_io_bio(bio)->logical = file_offset;
-	atomic_inc(&dip->pending_bios);
 
 	while (bvec <= (orig_bio->bi_io_vec + orig_bio->bi_vcnt - 1)) {
 		nr_sectors = BTRFS_BYTES_TO_BLKS(root->fs_info, bvec->bv_len);
@@ -8561,7 +8585,8 @@ submit:
 	if (!ret)
 		return 0;
 
-	bio_put(bio);
+	if (bio != orig_bio)
+		bio_put(bio);
 out_err:
 	dip->errors = 1;
 	/*
@@ -8608,7 +8633,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 	io_bio->bi_private = dip;
 	dip->orig_bio = io_bio;
 	dip->dio_bio = dio_bio;
-	atomic_set(&dip->pending_bios, 0);
+	atomic_set(&dip->pending_bios, 1);
 	btrfs_bio = btrfs_io_bio(io_bio);
 	btrfs_bio->logical = file_offset;
 
@@ -9592,8 +9617,14 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	bool root_log_pinned = false;
 	bool dest_log_pinned = false;
 
-	/* we only allow rename subvolume link between subvolumes */
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID && root != dest)
+	/*
+	 * For non-subvolumes allow exchange only within one subvolume, in the
+	 * same inode namespace. Two subvolumes (represented as directory) can
+	 * be exchanged as they're a logical link and have a fixed inode number.
+	 */
+	if (root != dest &&
+	    (old_ino != BTRFS_FIRST_FREE_OBJECTID ||
+	     new_ino != BTRFS_FIRST_FREE_OBJECTID))
 		return -EXDEV;
 
 	/* close the race window with snapshot create/destroy ioctl */
@@ -9615,6 +9646,9 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 		ret = PTR_ERR(trans);
 		goto out_notrans;
 	}
+
+	if (dest != root)
+		btrfs_record_root_in_trans(trans, dest);
 
 	/*
 	 * We need to find a free sequence number both in the source and

@@ -1028,7 +1028,7 @@ static ssize_t oppo_register_info_write(struct file *filp, const char __user *bu
 	}
 
 	/* parsing address (Novatek address length: 5 bit) */
-	sprintf(tmp, sizeof(tmp), "%c%c%c%c%c", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
+	sprintf(tmp, "%c%c%c%c%c", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
 
 	if (kstrtouint(tmp, 16, &oppo_reg.addr)) {
 		NVT_ERR("kstrtouint error\n");

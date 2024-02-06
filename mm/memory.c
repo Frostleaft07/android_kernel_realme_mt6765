@@ -129,6 +129,25 @@ unsigned long highest_memmap_pfn __read_mostly;
 
 EXPORT_SYMBOL(zero_pfn);
 
+#ifdef CONFIG_UKSM
+unsigned long uksm_zero_pfn __read_mostly;
+EXPORT_SYMBOL_GPL(uksm_zero_pfn);
+struct page *empty_uksm_zero_page;
+
+static int __init setup_uksm_zero_page(void)
+{
+	empty_uksm_zero_page = alloc_pages(__GFP_ZERO & ~__GFP_MOVABLE, 0);
+	if (!empty_uksm_zero_page)
+		panic("Oh boy, that early out of memory?");
+
+	SetPageReserved(empty_uksm_zero_page);
+	uksm_zero_pfn = page_to_pfn(empty_uksm_zero_page);
+
+	return 0;
+}
+core_initcall(setup_uksm_zero_page);
+#endif
+
 /*
  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
  */
@@ -138,6 +157,7 @@ static int __init init_zero_pfn(void)
 	return 0;
 }
 core_initcall(init_zero_pfn);
+
 
 
 #if defined(SPLIT_RSS_COUNTING)
@@ -325,6 +345,22 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 	return false;
 }
 
+void tlb_flush_pmd_range(struct mmu_gather *tlb, unsigned long address,
+			 unsigned long size)
+{
+	if (tlb->page_size != 0 && tlb->page_size != PMD_SIZE)
+		tlb_flush_mmu(tlb);
+
+	tlb->page_size = PMD_SIZE;
+	tlb->start = min(tlb->start, address);
+	tlb->end = max(tlb->end, address + size);
+	/*
+	 * Track the last address with which we adjusted the range. This
+	 * will be used later to adjust again after a mmu_flush due to
+	 * failed __tlb_remove_page
+	 */
+	tlb->addr = address + size - PMD_SIZE;
+}
 #endif /* HAVE_GENERIC_MMU_GATHER */
 
 #ifdef CONFIG_HAVE_RCU_TABLE_FREE
@@ -336,6 +372,11 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 static void tlb_remove_table_smp_sync(void *arg)
 {
 	/* Simply deliver the interrupt */
+}
+
+void tlb_remove_table_sync_one(void)
+{
+	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
 }
 
 static void tlb_remove_table_one(void *table)
@@ -910,6 +951,11 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		get_page(page);
 		page_dup_rmap(page, false);
 		rss[mm_counter(page)]++;
+		
+		/* Should return NULL in vm_normal_page() */
+		uksm_bugon_zeropage(pte);
+	} else {
+		uksm_map_zero_page(pte);
 	}
 
 out_set_pte:
@@ -1120,6 +1166,17 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	return ret;
 }
 
+/* Whether we should zap all COWed (private) pages too */
+static inline bool should_zap_cows(struct zap_details *details)
+{
+	/* By default, zap all pages */
+	if (!details)
+		return true;
+
+	/* Or, we zap COWed pages only if the caller wants to */
+	return !details->check_mapping;
+}
+
 static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
@@ -1163,8 +1220,10 @@ again:
 			ptent = ptep_get_and_clear_full(mm, addr, pte,
 							tlb->fullmm);
 			tlb_remove_tlb_entry(tlb, pte, addr);
-			if (unlikely(!page))
+			if (unlikely(!page)) {
+				uksm_unmap_zero_page(ptent);
 				continue;
+			}
 
 			if (!PageAnon(page)) {
 				if (pte_dirty(ptent)) {
@@ -1193,17 +1252,20 @@ again:
 			}
 			continue;
 		}
-		/* only check swap_entries if explicitly asked for in details */
-		if (unlikely(details && !details->check_swap_entries))
-			continue;
 
 		entry = pte_to_swp_entry(ptent);
-		if (!non_swap_entry(entry))
+		if (!non_swap_entry(entry)) {
+			/* Genuine swap entry, hence a private anon page */
+			if (!should_zap_cows(details))
+				continue;
 			rss[MM_SWAPENTS]--;
-		else if (is_migration_entry(entry)) {
+		} else if (is_migration_entry(entry)) {
 			struct page *page;
 
 			page = migration_entry_to_page(entry);
+			if (details && details->check_mapping &&
+			    details->check_mapping != page_rmapping(page))
+				continue;
 			rss[mm_counter(page)]--;
 		}
 		if (unlikely(!free_swap_and_cache(entry)))
@@ -1710,11 +1772,11 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 			unsigned long addr, unsigned long end,
 			unsigned long pfn, pgprot_t prot)
 {
-	pte_t *pte;
+	pte_t *pte, *mapped_pte;
 	spinlock_t *ptl;
 	int err = 0;
 
-	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+	mapped_pte = pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
 		return -ENOMEM;
 	arch_enter_lazy_mmu_mode();
@@ -1728,7 +1790,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	arch_leave_lazy_mmu_mode();
-	pte_unmap_unlock(pte - 1, ptl);
+	pte_unmap_unlock(mapped_pte, ptl);
 	return err;
 }
 
@@ -2044,8 +2106,10 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 			clear_page(kaddr);
 		kunmap_atomic(kaddr);
 		flush_dcache_page(dst);
-	} else
+	} else {
 		copy_user_highpage(dst, src, va, vma);
+		uksm_cow_page(vma, src);
+	}
 }
 
 static gfp_t __get_fault_gfp_mask(struct vm_area_struct *vma)
@@ -2188,6 +2252,7 @@ static int wp_page_copy(struct fault_env *fe, pte_t orig_pte,
 		new_page = alloc_zeroed_user_highpage_movable(vma, fe->address);
 		if (!new_page)
 			goto oom;
+		uksm_cow_pte(vma, orig_pte);
 	} else {
 		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
 				fe->address);
@@ -2214,7 +2279,9 @@ static int wp_page_copy(struct fault_env *fe, pte_t orig_pte,
 						mm_counter_file(old_page));
 				inc_mm_counter_fast(mm, MM_ANONPAGES);
 			}
+			uksm_bugon_zeropage(orig_pte);
 		} else {
+			uksm_unmap_zero_page(orig_pte);
 			inc_mm_counter_fast(mm, MM_ANONPAGES);
 		}
 		flush_cache_page(vma, fe->address, pte_pfn(orig_pte));
@@ -2885,10 +2952,15 @@ static int __do_fault(struct fault_env *fe, pgoff_t pgoff,
 	}
 
 	if (unlikely(PageHWPoison(vmf.page))) {
-		if (ret & VM_FAULT_LOCKED)
+		int poisonret = VM_FAULT_HWPOISON;
+		if (ret & VM_FAULT_LOCKED) {
+			/* Retry if a clean page was removed from the cache. */
+			if (invalidate_inode_page(vmf.page))
+				poisonret = 0;
 			unlock_page(vmf.page);
+		}
 		put_page(vmf.page);
-		return VM_FAULT_HWPOISON;
+		return poisonret;
 	}
 
 	if (unlikely(!(ret & VM_FAULT_LOCKED)))
@@ -3788,8 +3860,8 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 }
 #endif /* __PAGETABLE_PMD_FOLDED */
 
-static int __follow_pte(struct mm_struct *mm, unsigned long address,
-		pte_t **ptepp, spinlock_t **ptlp)
+static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
+		pte_t **ptepp, pmd_t **pmdpp, spinlock_t **ptlp)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -3806,11 +3878,20 @@ static int __follow_pte(struct mm_struct *mm, unsigned long address,
 
 	pmd = pmd_offset(pud, address);
 	VM_BUG_ON(pmd_trans_huge(*pmd));
-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto out;
 
-	/* We cannot handle huge page PFN maps. Luckily they don't exist. */
-	if (pmd_huge(*pmd))
+	if (pmd_huge(*pmd)) {
+		if (!pmdpp)
+			goto out;
+
+		*ptlp = pmd_lock(mm, pmd);
+		if (pmd_huge(*pmd)) {
+			*pmdpp = pmd;
+			return 0;
+		}
+		spin_unlock(*ptlp);
+	}
+
+	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
 		goto out;
 
 	ptep = pte_offset_map_lock(mm, pmd, address, ptlp);
@@ -3833,9 +3914,23 @@ static inline int follow_pte(struct mm_struct *mm, unsigned long address,
 
 	/* (void) is needed to make gcc happy */
 	(void) __cond_lock(*ptlp,
-			   !(res = __follow_pte(mm, address, ptepp, ptlp)));
+			   !(res = __follow_pte_pmd(mm, address, ptepp, NULL,
+					   ptlp)));
 	return res;
 }
+
+int follow_pte_pmd(struct mm_struct *mm, unsigned long address,
+			     pte_t **ptepp, pmd_t **pmdpp, spinlock_t **ptlp)
+{
+	int res;
+
+	/* (void) is needed to make gcc happy */
+	(void) __cond_lock(*ptlp,
+			   !(res = __follow_pte_pmd(mm, address, ptepp, pmdpp,
+					   ptlp)));
+	return res;
+}
+EXPORT_SYMBOL(follow_pte_pmd);
 
 /**
  * follow_pfn - look up PFN at a user virtual address

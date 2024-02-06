@@ -1204,6 +1204,14 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 			compatible = "mediatek,mt8173-disp_dsi1";
 			reg = <0 0x1401c000 0 0x1000>;
 			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_LOW>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			clocks = <&mmsys CLK_MM_DSI1_ENGINE>,
+				 <&mmsys CLK_MM_DSI1_DIGITAL>,
+				 <&mipi_tx1>;
+			clock-names = "engine", "digital", "hs";
+			phys = <&mipi_tx1>;
+			phy-names = "dphy";
+			status = "disabled";
 		};
 
 		dpi0: dpi@1401d000 {

@@ -142,6 +142,6 @@ static void cputime_to_compat_timeval(const cputime_t cputime,
 #define exit_elf_binfmt		exit_compat_elf_binfmt
 
 /*
- * We share all the actual code with the native (64-bit) version.
- */
+ * We share all the actual code with the native (64-bit) version. */
+
 #include "binfmt_elf.c"

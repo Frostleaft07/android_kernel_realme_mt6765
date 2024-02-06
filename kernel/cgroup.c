@@ -1812,6 +1812,7 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 {
 	int ret = 0;
 	struct cgroup_root *root = cgroup_root_from_kf(kf_root);
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_sb_opts opts;
 	u16 added_mask, removed_mask;
 
@@ -1830,6 +1831,13 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	if (opts.subsys_mask != root->subsys_mask || opts.release_agent)
 		pr_warn("option changes via remount are deprecated (pid=%d comm=%s)\n",
 			task_tgid_nr(current), current->comm);
+
+	/* See cgroup_mount release_agent handling */
+	if (opts.release_agent &&
+	    ((ns->user_ns != &init_user_ns) || !capable(CAP_SYS_ADMIN))) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	added_mask = opts.subsys_mask & ~root->subsys_mask;
 	removed_mask = root->subsys_mask & ~opts.subsys_mask;
@@ -2203,6 +2211,16 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	/* Hierarchies may only be created in the initial cgroup namespace. */
 	if (ns != &init_cgroup_ns) {
 		ret = -EPERM;
+		goto out_unlock;
+	}
+
+	/*
+	 * Release agent gets called with all capabilities,
+	 * require capabilities to set release agent.
+	 */
+	if (opts.release_agent &&
+	    ((ns->user_ns != &init_user_ns) || !capable(CAP_SYS_ADMIN))) {
+		ret = -EINVAL;
 		goto out_unlock;
 	}
 
@@ -2985,6 +3003,14 @@ static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
 
 	BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
 
+	/*
+	 * Release agent gets called with all capabilities,
+	 * require capabilities to set release agent.
+	 */
+	if ((of->file->f_cred->user_ns != &init_user_ns) ||
+	    !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
 		return -ENODEV;
@@ -3686,6 +3712,10 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 {
 	struct cgroup *cgrp = kn->priv;
 	int ret;
+
+	/* do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable */
+	if (strchr(new_name_str, '\n'))
+		return -EINVAL;
 
 	if (kernfs_type(kn) != KERNFS_DIR)
 		return -ENOTDIR;
@@ -5766,8 +5796,6 @@ int __init cgroup_init_early(void)
 	return 0;
 }
 
-static u16 cgroup_disable_mask __initdata;
-
 /**
  * cgroup_init - cgroup initialization
  *
@@ -5825,12 +5853,8 @@ int __init cgroup_init(void)
 		 * disabled flag and cftype registration needs kmalloc,
 		 * both of which aren't available during early_init.
 		 */
-		if (cgroup_disable_mask & (1 << ssid)) {
-			static_branch_disable(cgroup_subsys_enabled_key[ssid]);
-			printk(KERN_INFO "Disabling %s control group subsystem\n",
-			       ss->name);
+		if (!cgroup_ssid_enabled(ssid))
 			continue;
-		}
 
 		if (cgroup_ssid_no_v1(ssid))
 			printk(KERN_INFO "Disabling %s control group subsystem in v1 mounts\n",
@@ -6273,7 +6297,10 @@ static int __init cgroup_disable(char *str)
 			if (strcmp(token, ss->name) &&
 			    strcmp(token, ss->legacy_name))
 				continue;
-			cgroup_disable_mask |= 1 << i;
+
+			static_branch_disable(cgroup_subsys_enabled_key[i]);
+			pr_info("Disabling %s control group subsystem\n",
+				ss->name);
 		}
 	}
 	return 1;
@@ -6456,14 +6483,14 @@ void cgroup_sk_alloc_disable(void)
 
 void cgroup_sk_alloc(struct sock_cgroup_data *skcd)
 {
-	if (cgroup_sk_alloc_disabled)
-		return;
-
-	/* Socket clone path */
-	if (skcd->val) {
-		cgroup_get(sock_cgroup_ptr(skcd));
+	if (cgroup_sk_alloc_disabled) {
+		skcd->no_refcnt = 1;
 		return;
 	}
+
+	/* Don't associate the sock with unrelated interrupted task's cgroup. */
+	if (in_interrupt())
+		return;
 
 	rcu_read_lock();
 
@@ -6481,8 +6508,26 @@ void cgroup_sk_alloc(struct sock_cgroup_data *skcd)
 	rcu_read_unlock();
 }
 
+void cgroup_sk_clone(struct sock_cgroup_data *skcd)
+{
+	/* Socket clone path */
+	if (skcd->val) {
+		if (skcd->no_refcnt)
+			return;
+		/*
+		 * We might be cloning a socket which is left in an empty
+		 * cgroup and the cgroup might have already been rmdir'd.
+		 * Don't use cgroup_get_live().
+		 */
+		cgroup_get(sock_cgroup_ptr(skcd));
+	}
+}
+
 void cgroup_sk_free(struct sock_cgroup_data *skcd)
 {
+	if (skcd->no_refcnt)
+		return;
+
 	cgroup_put(sock_cgroup_ptr(skcd));
 }
 

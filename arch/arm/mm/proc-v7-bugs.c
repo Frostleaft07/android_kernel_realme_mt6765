@@ -43,7 +43,54 @@ static void cpu_v7_spectre_init(void)
 	int cpu = smp_processor_id();
 
 	if (per_cpu(harden_branch_predictor_fn, cpu))
-		return;
+		return SPECTRE_MITIGATED;
+
+	switch (method) {
+	case SPECTRE_V2_METHOD_BPIALL:
+		per_cpu(harden_branch_predictor_fn, cpu) =
+			harden_branch_predictor_bpiall;
+		spectre_v2_method = "BPIALL";
+		break;
+
+	case SPECTRE_V2_METHOD_ICIALLU:
+		per_cpu(harden_branch_predictor_fn, cpu) =
+			harden_branch_predictor_iciallu;
+		spectre_v2_method = "ICIALLU";
+		break;
+
+	case SPECTRE_V2_METHOD_HVC:
+		per_cpu(harden_branch_predictor_fn, cpu) =
+			call_hvc_arch_workaround_1;
+		cpu_do_switch_mm = cpu_v7_hvc_switch_mm;
+		spectre_v2_method = "hypervisor";
+		break;
+
+	case SPECTRE_V2_METHOD_SMC:
+		per_cpu(harden_branch_predictor_fn, cpu) =
+			call_smc_arch_workaround_1;
+		cpu_do_switch_mm = cpu_v7_smc_switch_mm;
+		spectre_v2_method = "firmware";
+		break;
+	}
+
+	if (spectre_v2_method)
+		pr_info("CPU%u: Spectre v2: using %s workaround\n",
+			smp_processor_id(), spectre_v2_method);
+
+	return SPECTRE_MITIGATED;
+}
+#else
+static unsigned int spectre_v2_install_workaround(unsigned int method)
+{
+	pr_info_once("Spectre V2: workarounds disabled by configuration\n");
+
+	return SPECTRE_VULNERABLE;
+}
+#endif
+
+static void cpu_v7_spectre_v2_init(void)
+{
+	unsigned int state, method = 0;
 
 	switch (read_cpuid_part()) {
 	case ARM_CPU_PART_CORTEX_A8:
@@ -108,9 +155,49 @@ static void cpu_v7_spectre_init(void)
 #endif
 	}
 
-	if (spectre_v2_method)
-		pr_info("CPU%u: Spectre v2: using %s workaround\n",
-			smp_processor_id(), spectre_v2_method);
+	if (state == SPECTRE_MITIGATED)
+		state = spectre_v2_install_workaround(method);
+
+	spectre_v2_update_state(state, method);
+}
+
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+static int spectre_bhb_method;
+
+static const char *spectre_bhb_method_name(int method)
+{
+	switch (method) {
+	case SPECTRE_V2_METHOD_LOOP8:
+		return "loop";
+
+	case SPECTRE_V2_METHOD_BPIALL:
+		return "BPIALL";
+
+	default:
+		return "unknown";
+	}
+}
+
+static int spectre_bhb_install_workaround(int method)
+{
+	if (spectre_bhb_method != method) {
+		if (spectre_bhb_method) {
+			pr_err("CPU%u: Spectre BHB: method disagreement, system vulnerable\n",
+			       smp_processor_id());
+
+			return SPECTRE_VULNERABLE;
+		}
+
+		if (spectre_bhb_update_vectors(method) == SPECTRE_VULNERABLE)
+			return SPECTRE_VULNERABLE;
+
+		spectre_bhb_method = method;
+
+		pr_info("CPU%u: Spectre BHB: enabling %s workaround for all CPUs\n",
+			smp_processor_id(), spectre_bhb_method_name(method));
+	}
+
+	return SPECTRE_MITIGATED;
 }
 #else
 static void cpu_v7_spectre_init(void)
@@ -153,6 +240,8 @@ void cpu_v7_ca15_ibe(void)
 {
 	if (check_spectre_auxcr(this_cpu_ptr(&spectre_warned), BIT(0)))
 		cpu_v7_spectre_init();
+		cpu_v7_spectre_v2_init();
+	cpu_v7_spectre_bhb_init();
 }
 
 void cpu_v7_bugs_init(void)
