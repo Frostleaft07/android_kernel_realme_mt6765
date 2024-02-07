@@ -172,10 +172,10 @@ config CPU_FREQ_DEFAULT_GOV_INTELLIACTIVE
 	bool "intelliactive"
 	select CPU_FREQ_GOV_INTELLIACTIVE
 	help
-	  Use the CPUFreq governor 'interactive' as default. This allows
+	  Use the CPUFreq governor 'intelliactive' as default. This allows
 	  you to get a full dynamic cpu frequency capable system by simply
 	  loading your cpufreq low-level hardware driver, using the
-	  'interactive' governor for latency-sensitive workloads.
+	  'intelliactive' governor for latency-sensitive workloads.
 	  
 config CPU_FREQ_DEFAULT_GOV_NIGHTMARE
 	bool "nightmare"
@@ -187,10 +187,7 @@ config CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
 	bool "blu_active"
 	select CPU_FREQ_GOV_BLU_ACTIVE
 	help
-	  Use the CPUFreq governor 'blu_active' as default. This allows
-	  you to get a full dynamic cpu frequency capable system by simply
-	  loading your cpufreq low-level hardware driver, using the
-	  'interactive' governor for latency-sensitive workloads.
+	  Use the CPUFreq governor 'blu_active' as default.
 	  
 config CPU_FREQ_DEFAULT_GOV_LIONHEART
 	bool "lionheart"
@@ -313,12 +310,6 @@ config CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND
 	select CPU_FREQ_GOV_INTELLIDEMAND
 	help
 	  Use the CPUFreq governor 'intellidemand' as default.
-
-config CPU_FREQ_DEFAULT_GOV_INTERACTIVEX
-	bool "interactivex"
-	select CPU_FREQ_GOV_INTERACTIVEX
-	help
-	  Use the CPUFreq governor 'interactivex' as default.
 
 config CPU_FREQ_DEFAULT_GOV_LAGFREE
 	bool "lagfree"

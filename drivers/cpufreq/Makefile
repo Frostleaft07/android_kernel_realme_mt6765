@@ -39,7 +39,6 @@ obj-$(CONFIG_CPU_FREQ_GOV_BADASS)            += cpufreq_badass.o
 obj-$(CONFIG_CPU_FREQ_GOV_BRAZILIANWAX)      += cpufreq_brazilianwax.o
 obj-$(CONFIG_CPU_FREQ_GOV_HYPER)             += cpufreq_hyper.o
 obj-$(CONFIG_CPU_FREQ_GOV_INTELLIDEMAND)     += cpufreq_intellidemand.o
-obj-$(CONFIG_CPU_FREQ_GOV_INTERACTIVEX)      += cpufreq_interactiveX.o
 obj-$(CONFIG_CPU_FREQ_GOV_LAGFREE)           += cpufreq_lagfree.o
 obj-$(CONFIG_CPU_FREQ_GOV_LAZY)              += cpufreq_lazy.o
 obj-$(CONFIG_CPU_FREQ_GOV_LULZACTIVE)       += cpufreq_lulzactive.o
