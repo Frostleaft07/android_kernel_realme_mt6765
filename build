@@ -6,7 +6,7 @@ echo $KBUILD_BUILD_HOST
 echo -e "done?"
 sleep 2s
 
-make CC=clang ARCH=arm64 O=out RMX2185_defconfig
+make CC=clang ARCH=arm64 O=out hatsune_defconfig
 make CC=clang ARCH=arm64 O=out -j16 \
         HEADER_ARCH=arm64 \
         SUBARCH=arm64 \
