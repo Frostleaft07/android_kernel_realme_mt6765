@@ -3,7 +3,7 @@ TEST_PROGS := fpu_syscall fpu_preempt fpu_signal vmx_syscall vmx_preempt vmx_sig
 all: $(TEST_PROGS)
 
 $(TEST_PROGS): ../harness.c
-$(TEST_PROGS): CFLAGS += -O2 -g -pthread -m64 -maltivec
+$(TEST_PROGS): CFLAGS += -O3 -g -pthread -m64 -maltivec
 
 fpu_syscall: fpu_asm.S
 fpu_preempt: fpu_asm.S

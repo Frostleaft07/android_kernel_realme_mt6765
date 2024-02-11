@@ -3,7 +3,7 @@ TEST_PROGS := test_execve
 
 BINARIES := $(TEST_FILES) $(TEST_PROGS)
 
-CFLAGS += -O2 -g -std=gnu99 -Wall
+CFLAGS += -O3 -g -std=gnu99 -Wall
 LDLIBS += -lcap-ng -lrt -ldl
 
 all: $(BINARIES)

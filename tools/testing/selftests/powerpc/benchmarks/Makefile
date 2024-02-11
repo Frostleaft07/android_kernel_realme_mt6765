@@ -1,6 +1,6 @@
 TEST_PROGS := gettimeofday context_switch mmap_bench futex_bench
 
-CFLAGS += -O2
+CFLAGS += -O3
 
 all: $(TEST_PROGS)
 

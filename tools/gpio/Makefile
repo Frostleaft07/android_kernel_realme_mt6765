@@ -13,7 +13,7 @@ MAKEFLAGS += -r
 
 CC = $(CROSS_COMPILE)gcc
 LD = $(CROSS_COMPILE)ld
-CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
+CFLAGS += -O3 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
 
 ALL_TARGETS := lsgpio gpio-hammer gpio-event-mon
 ALL_PROGRAMS := $(patsubst %,$(OUTPUT)%,$(ALL_TARGETS))
