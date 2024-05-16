@@ -1630,6 +1630,24 @@ struct ravg {
 };
 #endif
 
+#ifdef CONFIG_SCHED_BORE
+typedef union {
+	u16	u16;
+	s16	s16;
+	u8	u8[2];
+	s8	s8[2];
+} x16;
+
+typedef union {
+	u32	u32;
+	s32	s32;
+	u16	u16[2];
+	s16	s16[2];
+	u8	u8[4];
+	s8	s8[4];
+} x32;
+#endif // CONFIG_SCHED_BORE
+
 struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
@@ -1650,6 +1668,12 @@ struct sched_entity {
 	u64 hmp_last_down_migration;
 #endif /* CONFIG_SCHED_HMP */
 	u64			prev_sum_exec_runtime;
+#ifdef CONFIG_SCHED_BORE
+	u64				burst_time;
+	u16				prev_burst_penalty;
+	u16				curr_burst_penalty;
+	u16				burst_penalty;
+#endif // CONFIG_SCHED_BORE
 
 	u64			nr_migrations;
 
@@ -1974,6 +1998,13 @@ struct task_struct {
 	struct list_head children;	/* list of my children */
 	struct list_head sibling;	/* linkage in my parent's children list */
 	struct task_struct *group_leader;	/* threadgroup leader */
+#ifdef CONFIG_SCHED_BORE
+	u16	child_burst_cache;
+	u16	child_burst_count_cache;
+	u64	child_burst_last_cached;
+	u16	group_burst_cache;
+	u64	group_burst_last_cached;
+#endif // CONFIG_SCHED_BORE
 
 	/*
 	 * ptraced is the list of tasks this task is using ptrace on.
@@ -3140,6 +3171,7 @@ extern void wake_up_new_task(struct task_struct *tsk);
  static inline void kick_process(struct task_struct *tsk) { }
 #endif
 extern int sched_fork(unsigned long clone_flags, struct task_struct *p);
+extern void sched_post_fork(struct task_struct *p);
 extern void sched_dead(struct task_struct *p);
 
 extern void proc_caches_init(void);
