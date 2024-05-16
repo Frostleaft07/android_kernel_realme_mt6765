@@ -1,0 +1,56 @@
+#!/bin/bash
+
+############################################################################################
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Kernel Source:
+# git clone <your_repo_link> -b <branch>
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+############################################################################################
+
+##############################################
+# Toolchains
+# Find more on https://kali.download/nethunter-images/toolchains/
+##############################################
+
+# Architecture (arm or arm64)
+export ARCH=arm64
+
+### Most arm64 kernels above version 4.x is fine with Clang.
+
+# Comment out this section if the above applies to your device.
+# Clang
+unset CLANG_ROOT
+unset CLANG_PATH
+unset LD_LIBRARY_PATH
+unset CLANG_TRIPLE
+unset CC
+unset CLANG_SRC
+
+### Recommended arm compiler (don't comment out as it will be always needed)
+# GCC 32bit (arm) source
+CROSS_COMPILE_ARM32_SRC="https://kali.download/nethunter-images/toolchains/linaro-armhf-4.9.tar.xz"
+CROSS_COMPILE_ARM32_TYPE="wget"
+# And it's path
+CCD32="${TD}/linaro-armhf-4.9"
+export CROSS_COMPILE_ARM32=${CCD32}/bin/arm-linux-gnueabihf-
+
+### Recommended arm64 compiler (comment out if you use clang)
+# GCC 64bit (arm64) source
+CROSS_COMPILE_SRC="https://kali.download/nethunter-images/toolchains/linaro-aarch64-4.9.tar.xz"
+CROSS_COMPILE_TYPE="wget"
+# And it's path
+CCD="${TD}/aarch64-4.9"
+export CROSS_COMPILE=${CCD}/bin/aarch64-linux-gnu-
+
+# Additional compiler arguments
+MAKE_ARGS=""
+
+# Speed up the build
+CCACHE=true
+
+# Name your kernel
+# Kernel local name
+export LOCALVERSION=-yesimxev
+
+# Some devices will have mismatch, to ignore errors uncomment the following line
+#MAKE_ARGS="CONFIG_NO_ERROR_ON_MISMATCH=y"
