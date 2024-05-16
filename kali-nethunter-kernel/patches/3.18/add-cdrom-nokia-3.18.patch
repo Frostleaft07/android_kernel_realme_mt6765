@@ -1,0 +1,79 @@
+From 71cf4840b7d452dbdf98955dc516f99a39a09c9b Mon Sep 17 00:00:00 2001
+From: yesimxev <yesimxev@github.com>
+Date: Mon, 13 Jul 2020 01:44:53 +0100
+Subject: [PATCH] Apply add-cdrom-frozencow-3.18 patch
+
+---
+ drivers/usb/gadget/function/f_mass_storage.c | 27 ++++++++++++++++----
+ 1 file changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/usb/gadget/function/f_mass_storage.c b/drivers/usb/gadget/function/f_mass_storage.c
+index 4cb52480..2f33c42d 100644
+--- a/drivers/usb/gadget/function/f_mass_storage.c
++++ b/drivers/usb/gadget/function/f_mass_storage.c
+@@ -2660,6 +2660,13 @@ static int fsg_main_thread(void *common_)
+ 
+ /*************************** DEVICE ATTRIBUTES ***************************/
+ 
++static ssize_t cdrom_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
++
++	return fsg_show_cdrom(curlun, buf);
++}
++
+ static ssize_t ro_show(struct device *dev, struct device_attribute *attr, char *buf)
+ {
+ 	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+@@ -2684,6 +2691,15 @@ static ssize_t file_show(struct device *dev, struct device_attribute *attr,
+ 	return fsg_show_file(curlun, filesem, buf);
+ }
+ 
++static ssize_t cdrom_store(struct device *dev, struct device_attribute *attr,
++			const char *buf, size_t count)
++{
++	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
++	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
++
++	return fsg_store_cdrom(curlun, filesem, buf, count);
++}
++
+ static ssize_t ro_store(struct device *dev, struct device_attribute *attr,
+ 			const char *buf, size_t count)
+ {
+@@ -2710,11 +2726,11 @@ static ssize_t file_store(struct device *dev, struct device_attribute *attr,
+ 	return fsg_store_file(curlun, filesem, buf, count);
+ }
+ 
++static DEVICE_ATTR_RW(cdrom);
+ static DEVICE_ATTR_RW(ro);
+ static DEVICE_ATTR_RW(nofua);
+ static DEVICE_ATTR_RW(file);
+ 
+-static struct device_attribute dev_attr_ro_cdrom = __ATTR_RO(ro);
+ static struct device_attribute dev_attr_file_nonremovable = __ATTR_RO(file);
+ 
+ 
+@@ -2859,6 +2875,7 @@ static inline void fsg_common_remove_sysfs(struct fsg_lun *lun)
+ 	 * so we don't differentiate between removing e.g. dev_attr_ro_cdrom
+ 	 * and dev_attr_ro
+ 	 */
++	device_remove_file(&lun->dev, &dev_attr_cdrom);
+ 	device_remove_file(&lun->dev, &dev_attr_ro);
+ 	device_remove_file(&lun->dev, &dev_attr_file);
+ }
+@@ -2984,10 +3001,10 @@ static inline int fsg_common_add_sysfs(struct fsg_common *common,
+ 		return rc;
+ 	}
+ 
+-	rc = device_create_file(&lun->dev,
+-				lun->cdrom
+-			      ? &dev_attr_ro_cdrom
+-			      : &dev_attr_ro);
++	rc = device_create_file(&lun->dev, &dev_attr_cdrom);
++	if (rc)
++		goto error;
++	rc = device_create_file(&lun->dev, &dev_attr_ro);
+ 	if (rc)
+ 		goto error;
+ 	rc = device_create_file(&lun->dev,
