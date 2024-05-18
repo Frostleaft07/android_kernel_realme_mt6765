@@ -2443,7 +2443,7 @@ void rtw_cancel_all_timer(_adapter *padapter)
 	_cancel_timer_ex(&pmlmeext->survey_timer);
 	_cancel_timer_ex(&pmlmeext->link_timer);
 #ifdef CONFIG_IEEE80211W
-	_cancel_timer_ex(&pmlmeext->sa_query_timer);
+	_cancel_timer_ex(&pmlmeext->sa_query_seq);
 	/* cancel dm timer */
 #endif
 
