@@ -132,7 +132,6 @@ static struct mtk_usb_boost {
 	void (*request_func)(int);
 } boost_inst[_TYPE_MAXID];
 
-static int update_time(int id);
 static bool check_timeout(int id);
 static void __usb_boost_by_id(int id);
 
@@ -193,7 +192,6 @@ static void __request_it(int id)
 
 static void __usb_boost_by_id(int id)
 {
-	update_time(id);
 	boost_inst[id].request_func(id);
 }
 
@@ -248,14 +246,6 @@ static void dump_info(int id)
 	USB_BOOST_NOTICE("id<%d>, attr<%s>, val<%d>\n",
 		id, attr_name[ATTR_ARG3], boost_inst[id].act_arg.arg3);
 
-}
-static int update_time(int id)
-{
-	do_gettimeofday(&boost_inst[id].tv_ref_time);
-	USB_BOOST_DBG("id:%d, ref<%d,%d>\n", id,
-		(int)boost_inst[id].tv_ref_time.tv_sec,
-		(int)boost_inst[id].tv_ref_time.tv_usec);
-	return 1;
 }
 
 static bool check_timeout(int id)
@@ -582,7 +572,6 @@ int usb_boost_init(void)
 		count = sprintf(wq_name, "%s_wq", type_name[id]);
 		wq_name[count] = '\0';
 		boost_inst[id].id  = id;
-		update_time(id);
 		boost_inst[id].wq  = create_singlethread_workqueue(wq_name);
 		INIT_WORK(&boost_inst[id].work, boost_work);
 		USB_BOOST_DBG("ID<%d>, WQ<%p>, WORK<%p>\n",
