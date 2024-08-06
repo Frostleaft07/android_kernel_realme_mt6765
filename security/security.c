@@ -537,7 +537,6 @@ int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 		return 0;
 	return call_int_hook(inode_link, 0, old_dentry, dir, new_dentry);
 }
-EXPORT_SYMBOL_GPL(security_path_chown);
 
 int security_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
