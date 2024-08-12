@@ -399,7 +399,8 @@
 /*Henry.Chang@Camera.Driver 20181107 add for imgsensor driver*/
 #define S5K3P9SP_SENSOR_ID                      0x310A
 #define S5KGD1SP_SENSOR_ID                      0x0841
-
+#define PASCAL_SUNNY_WIDE_OV8856_SENSOR_ID      0x885B
+#define SENSOR_DRVNAME_PASCAL_SUNNY_WIDE_OV8856 "pascal_sunny_wide_ov8856"
 #define SENSOR_DRVNAME_S5K3P9SP_MIPI_RAW        "s5k3p9sp_mipi_raw"
 #define SENSOR_DRVNAME_GC5035_MIPI_RAW          "gc5035_mipi_raw"
 #define SENSOR_DRVNAME_S5KGD1SP_MIPI_RAW        "s5kgd1sp_mipi_raw"
