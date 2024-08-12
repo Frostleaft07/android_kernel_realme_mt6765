@@ -244,7 +244,7 @@
 &kd_camera_hw1 {
 	cam0_enable_sensor = "pascald_truly_main_ov13b10 pascald_qtech_main_ov13b10";
 	cam1_enable_sensor = "pascald_hlt_front_gc5035 pascald_shengtai_front_gc5035 pascald_shengtai2_front_gc5035 pascald_hlt_front_s5k4h7";
-	cam2_enable_sensor = "pascal_shengtai_wide_ov8856 pascald_cxt_depth_gc02m1b pascald_lhyx_depth_ov02b1b pascald_hlt_depth_gc02k0b pascald_hlt_depth_gc02m1b ";
+	cam2_enable_sensor = "pascal_shengtai_wide_ov8856 pascal_sunny_wide_ov8856 pascald_cxt_depth_gc02m1b pascald_lhyx_depth_ov02b1b pascald_hlt_depth_gc02k0b pascald_hlt_depth_gc02m1b ";
 	cam3_enable_sensor = "pascal_lhyx_mono1_ov02b1b pascal_shengtai_mono1_ov02b1b pascale_hlt_macro_ov02b10 pascal_cxt_mono1_gc02m1b";
 	cam4_enable_sensor = "pascal_hlt_mono_gc02m1b pascal_cxt_mono_ov02b1b";
 	pinctrl-names = "default",
