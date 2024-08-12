@@ -1241,6 +1241,19 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 		},
 	},
 #endif
+#if defined(PASCAL_SUNNY_WIDE_OV8856)
+    {
+        SENSOR_DRVNAME_PASCAL_SUNNY_WIDE_OV8856,
+        {
+            {RST, Vol_Low, 1},
+            {DOVDD, Vol_1800, 1},
+            {AVDD, Vol_2800, 1},
+            {DVDD, Vol_1200, 0},
+            {SensorMCLK, Vol_High, 1},
+            {RST, Vol_High, 5},
+        },
+    },
+#endif
 #endif
 	/* add new sensor before this line */
 	{NULL,},
