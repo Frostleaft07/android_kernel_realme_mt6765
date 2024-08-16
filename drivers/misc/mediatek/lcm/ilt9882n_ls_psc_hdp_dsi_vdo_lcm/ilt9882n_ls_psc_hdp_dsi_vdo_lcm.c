@@ -35,11 +35,11 @@
 #include "disp_dts_gpio.h"
 #endif
 
-//#ifdef ODM_WT_EDIT
+#ifdef ODM_WT_EDIT
 //Tongxing.Liu@ODM_WT.BSP.TP.FUNCTION.2019/10/07, add tp_gesture flag.
-//#include <linux/update_tpfw_notifier.h>
-//#endif
-//#include "disp_cust.h"
+#include <linux/update_tpfw_notifier.h>
+#endif
+#include "disp_cust.h"
 //Hongwu.Wei@ODM_WT.MM.LCD,2020/04/04, add /proc/devinfo/lcd node
 #include <soc/oppo/device_info.h>
 static struct LCM_UTIL_FUNCS lcm_util;
