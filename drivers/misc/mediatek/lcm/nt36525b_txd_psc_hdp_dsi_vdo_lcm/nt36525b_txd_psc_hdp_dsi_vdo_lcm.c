@@ -35,8 +35,8 @@
 #include "disp_dts_gpio.h"
 #endif
 //Yize.Zhangyize@ODM_WT.BSP.Touchscreen.funtion,2020/04/01,Adjust TP in resume update firmware.
-//#include <linux/update_tpfw_notifier.h>
-//#include "disp_cust.h"
+#include <linux/update_tpfw_notifier.h>
+#include "disp_cust.h"
 //Hongwu.Wei@ODM_WT.MM.LCD,2020/04/04, add /proc/devinfo/lcd node
 #include <soc/oppo/device_info.h>
 static struct LCM_UTIL_FUNCS lcm_util;
