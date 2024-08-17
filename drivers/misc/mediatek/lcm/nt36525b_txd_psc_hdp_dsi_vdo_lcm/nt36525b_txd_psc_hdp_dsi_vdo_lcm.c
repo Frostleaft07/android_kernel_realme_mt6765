@@ -559,7 +559,7 @@ static void lcm_init(void)
 	MDELAY(10);
 	SET_RESET_PIN(1);
 	MDELAY(15);
-	lcd_queue_load_tp_fw();
+	update_tpfw_notifier_call_chain(1,NULL);
 	if (lcm_dsi_mode == CMD_MODE) {
 		push_table(NULL, init_setting_cmd, sizeof(init_setting_cmd) / sizeof(struct LCM_setting_table), 1);
 		pr_debug("nt36525b_txd_lcm_mode = cmd mode :%d----\n", lcm_dsi_mode);
