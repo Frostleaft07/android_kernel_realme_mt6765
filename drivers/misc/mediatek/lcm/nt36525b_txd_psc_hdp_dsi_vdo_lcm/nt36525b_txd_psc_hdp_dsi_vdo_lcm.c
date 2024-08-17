@@ -457,12 +457,12 @@ static void lcm_init_power(void)
 }
 
 extern void lcd_queue_load_tp_fw(void);
-extern int tp_gesture_enable_flag(void);
+extern int tp_gesture;
 static void lcm_suspend_power(void)
 {
 
-    pr_debug("%s: tp_gesture_enable_flag = %d \n", __func__, tp_gesture_enable_flag());
-    if (0 == tp_gesture_enable_flag()) {
+    pr_debug("lcm_suspend_power\n");
+    if (0 == !tp_gesture) {
 		pr_debug("lcm_suspend_power\n");
 		SET_LCM_VSN_PIN(0);
 		MDELAY(2);
