@@ -1,0 +1,25 @@
+#!/bin/bash
+export KBUILD_BUILD_USER=Frostleaf
+export KBUILD_BUILD_HOST=Darkness
+echo $KBUILD_BUILD_USER
+echo $KBUILD_BUILD_HOST
+export LOCALVERSION="-Endfield 🪐"
+echo -e "done?"
+sleep 2s
+
+make CC=clang ARCH=arm64 O=out nethunter_defconfig
+make CC=clang LLVM=1 ARCH=arm64 O=out -j16 \
+        HEADER_ARCH=arm64 \
+        SUBARCH=arm64 \
+        CXX=c++ \
+        AR=llvm-ar \
+        NM=llvm-nm \
+        OBJDUMP=llvm-objdump \
+        STRIP=llvm-strip \
+        READELF=llvm-readelf \
+        HOSTCXX=clang++ \
+        HOSTAR=llvm-ar \
+        LLVM_IAS=1 \
+	CROSS_COMPILE=aarch64-linux-gnu- \
+        CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+        CLANG_TRIPLE=aarch64-linux-gnu-
