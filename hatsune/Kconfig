@@ -27,6 +27,8 @@ config MTK_VIDEOX_LINEAGE_LIVEDISPLAY
 
 endmenu
 
+source "drivers/kernelsu/Kconfig"
+
 menu "NetHunter Support"
 
 config NETHUNTER_SUPPORT
