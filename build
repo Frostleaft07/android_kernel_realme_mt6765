@@ -3,7 +3,7 @@ export KBUILD_BUILD_USER=Frostleaf
 export KBUILD_BUILD_HOST=Darkness
 echo $KBUILD_BUILD_USER
 echo $KBUILD_BUILD_HOST
-export LOCALVERSION="-Endfield 🪐"
+export LOCALVERSION="-Endfield 𖣯 KSU"
 echo -e "done?"
 sleep 2s
 
