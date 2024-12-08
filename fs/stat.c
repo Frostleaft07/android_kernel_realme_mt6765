@@ -18,23 +18,19 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+extern void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
+#endif
+
 void generic_fillattr(struct inode *inode, struct kstat *stat)
 {
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 	if (unlikely(inode->i_state & 67108864)) {
-		stat->dev = inode->android_kabi_reserved2;
-		stat->ino = inode->android_kabi_reserved1;
+		susfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);
 		stat->mode = inode->i_mode;
-		stat->nlink = inode->i_sb->android_kabi_reserved1;
+		stat->rdev = inode->i_rdev;
 		stat->uid = inode->i_uid;
 		stat->gid = inode->i_gid;
-		stat->rdev = inode->i_rdev;
-		stat->size = inode->i_sb->android_kabi_reserved2;
-		stat->atime = inode->i_atime;
-		stat->mtime = inode->i_mtime;
-		stat->ctime = inode->i_ctime;
-		stat->blksize = i_blocksize(inode);
-		stat->blocks = inode->i_sb->android_kabi_reserved3;
 		return;
 	}
 #endif

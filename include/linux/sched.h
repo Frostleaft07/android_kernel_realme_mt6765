@@ -956,8 +956,9 @@ struct user_struct {
 #if defined(CONFIG_PERF_EVENTS) || defined(CONFIG_BPF_SYSCALL)
 	atomic_long_t locked_vm;
 #endif
-#if defined(CONFIG_KSU_SUSFS_SUS_MOUNT) || defined(CONFIG_KSU_SUSFS_SUS_PATH)
-	u64 android_kabi_reserved1;
+
+#ifdef CONFIG_KSU_SUSFS
+	u64 android_kabi_reserved2;
 #endif
 };
 
@@ -2372,6 +2373,11 @@ struct task_struct {
 	/* A live task holds one reference. */
 	atomic_t stack_refcount;
 #endif
+
+#ifdef CONFIG_KSU_SUSFS
+	u64 android_kabi_reserved8;
+#endif
+
 #ifdef VENDOR_EDIT
     int static_ux;
 #endif /* VENDOR_EDIT */
@@ -2402,11 +2408,6 @@ struct task_struct {
 
 /* CPU-specific state of this task */
 	struct thread_struct thread;
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	u64 android_kabi_reserved1;
-	u64 android_kabi_reserved2;
-#endif
-
 /*
  * WARNING: on x86, 'thread_struct' contains a variable-sized
  * structure.  It *MUST* be at the end of 'task_struct'.

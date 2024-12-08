@@ -115,14 +115,14 @@ static int ovl_getattr(struct vfsmount *mnt, struct dentry *dentry,
 #ifdef CONFIG_KSU_SUSFS_SUS_OVERLAYFS
 	ovl_path_lowerdata(dentry, &realpath);
 	if (likely(realpath.mnt && realpath.dentry)) {
-		goto bypass_orig_flow;
+		old_cred = ovl_override_creds(dentry->d_sb);
+		err = vfs_getattr(&realpath, stat);
+		ovl_revert_creds(old_cred);
+		return err;
 	}
 #endif
 
 	ovl_path_real(dentry, &realpath);
-#ifdef CONFIG_KSU_SUSFS_SUS_OVERLAYFS
-bypass_orig_flow:
-#endif
 	old_cred = ovl_override_creds(dentry->d_sb);
 	err = vfs_getattr(&realpath, stat);
 	ovl_revert_creds(old_cred);
