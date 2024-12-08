@@ -55,24 +55,25 @@ ccflags-y += -DEXPECTED_HASH=\"$(KSU_EXPECTED_HASH)\"
 #endif
 
 ccflags-y += -DKSU_UMOUNT
+
 ifneq ($(shell grep -Eq "^static int can_umount" $(srctree)/fs/namespace.c; echo $$?),0)
 $(info -- KSU_SUSFS: adding function 'static int can_umount(const struct path *path, int flags);' to $(srctree)/fs/namespace.c)
 CAN_UMOUNT = static int can_umount(const struct path *path, int flags)\n\
 {\n\t\
-	struct mount *mnt = real_mount(path->mnt);\n\t\
-	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))\n\t\t\
-		return -EINVAL;\n\t\
-	if (!may_mount())\n\t\t\
-		return -EPERM;\n\t\
-	if (path->dentry != path->mnt->mnt_root)\n\t\t\
-		return -EINVAL;\n\t\
-	if (!check_mnt(mnt))\n\t\t\
-		return -EINVAL;\n\t\
-	if (mnt->mnt.mnt_flags & MNT_LOCKED)\n\t\t\
-		return -EINVAL;\n\t\
-	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))\n\t\t\
-		return -EPERM;\n\t\
-	return 0;\n\
+        struct mount *mnt = real_mount(path->mnt);\n\t\
+        if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))\n\t\t\
+                return -EINVAL;\n\t\
+        if (!may_mount())\n\t\t\
+                return -EPERM;\n\t\
+        if (path->dentry != path->mnt->mnt_root)\n\t\t\
+                return -EINVAL;\n\t\
+        if (!check_mnt(mnt))\n\t\t\
+                return -EINVAL;\n\t\
+        if (mnt->mnt.mnt_flags & MNT_LOCKED)\n\t\t\
+                return -EINVAL;\n\t\
+        if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))\n\t\t\
+                return -EPERM;\n\t\
+        return 0;\n\
 }\n
 $(shell sed -i '/^static bool is_mnt_ns_file/i $(CAN_UMOUNT)' $(srctree)/fs/namespace.c;)
 endif
@@ -81,14 +82,14 @@ ifneq ($(shell grep -Eq "^int path_umount" $(srctree)/fs/namespace.c; echo $$?),
 $(info -- KSU_SUSFS: adding function 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/namespace.c)
 PATH_UMOUNT = int path_umount(struct path *path, int flags)\n\
 {\n\t\
-	struct mount *mnt = real_mount(path->mnt);\n\t\
-	int ret;\n\t\
-	ret = can_umount(path, flags);\n\t\
-	if (!ret)\n\t\t\
-		ret = do_umount(mnt, flags);\n\t\
-	dput(path->dentry);\n\t\
-	mntput_no_expire(mnt);\n\t\
-	return ret;\n\
+        struct mount *mnt = real_mount(path->mnt);\n\t\
+        int ret;\n\t\
+        ret = can_umount(path, flags);\n\t\
+        if (!ret)\n\t\t\
+                ret = do_umount(mnt, flags);\n\t\
+        dput(path->dentry);\n\t\
+        mntput_no_expire(mnt);\n\t\
+        return ret;\n\
 }\n
 $(shell sed -i '/^static bool is_mnt_ns_file/i $(PATH_UMOUNT)' $(srctree)/fs/namespace.c;)
 endif
@@ -111,6 +112,12 @@ endif
 ifdef KSU_SUSFS_SUS_MOUNT
 ccflags-y += -DKSU_SUSFS_SUS_MOUNT
 endif
+ifdef KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
+ccflags-y += -DKSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
+endif
+ifdef KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
+ccflags-y += -DKSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
+endif
 ifdef KSU_SUSFS_SUS_KSTAT
 ccflags-y += -DKSU_SUSFS_SUS_KSTAT
 endif
@@ -120,11 +127,23 @@ endif
 ifdef KSU_SUSFS_TRY_UMOUNT
 ccflags-y += -DKSU_SUSFS_TRY_UMOUNT
 endif
+ifdef KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
+ccflags-y += -DKSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
+endif
 ifdef KSU_SUSFS_SPOOF_UNAME
 ccflags-y += -DKSU_SUSFS_SPOOF_UNAME
 endif
 ifdef KSU_SUSFS_ENABLE_LOG
 ccflags-y += -DKSU_SUSFS_ENABLE_LOG
+endif
+ifdef KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+ccflags-y += -DKSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+endif
+ifdef KSU_SUSFS_SPOOF_PROC_CMDLINE
+ccflags-y += -DKSU_SUSFS_SPOOF_PROC_CMDLINE
+endif
+ifdef KSU_SUSFS_OPEN_REDIRECT
+ccflags-y += -DKSU_SUSFS_OPEN_REDIRECT
 endif
 ifdef KSU_SUSFS_SUS_SU
 ccflags-y += -DKSU_SUSFS_SUS_SU
