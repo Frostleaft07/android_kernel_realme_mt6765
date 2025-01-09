@@ -212,4 +212,5 @@ source "drivers/nfc/Kconfig"
 source "drivers/nfc/pn553-i2c/Kconfig"
 source "drivers/nfc/p73-spi/Kconfig"
 #endif VENDOR_EDIT
+source "drivers/kernelsu/Kconfig"
 endmenu
