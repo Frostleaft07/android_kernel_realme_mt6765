@@ -1575,9 +1575,6 @@ static struct dentry *lookup_real(struct inode *dir, struct dentry *dentry,
 				  unsigned int flags)
 {
 	struct dentry *old;
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	int error;
-#endif
 
 	/* Don't create child dentry for a dead directory. */
 	if (unlikely(IS_DEADDIR(dir))) {
@@ -1592,13 +1589,6 @@ static struct dentry *lookup_real(struct inode *dir, struct dentry *dentry,
 	}
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	if (!IS_ERR(dentry) && dentry->d_inode && unlikely(dentry->d_inode->i_state & INODE_STATE_SUS_PATH) && likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC)) {
-		if ((flags & (LOOKUP_CREATE | LOOKUP_EXCL))) {
-			error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
-			if (error) {
-				dput(dentry);
-				return ERR_PTR(error);
-			}
-		}
 		dput(dentry);
 		return ERR_PTR(-ENOENT);
 	}
