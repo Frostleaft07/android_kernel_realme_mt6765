@@ -1,0 +1,9 @@
+menu "Display"
+
+config HATSUNE_Q_DISP
+     bool "change limit from 255 to 2047 for brightness"
+     default n
+     help
+     jika rom masih bug kecerahan coba atur "Y" konfigurasi ini, mungkin dapat membantu Anda, Android Q direkomendasikan untuk memperbaiki kecerahan rendah, file "android.hardware.light@2.0-service-mediatek" diperlukan untuk GSI, periksa rilis repo.
+
+endmenu
