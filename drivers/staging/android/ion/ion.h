@@ -79,7 +79,10 @@ struct ion_platform_data {
  */
 struct ion_client *ion_client_create(struct ion_device *dev,
 				     const char *name);
-
+#ifdef VENDOR_EDIT
+/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-06-26, add ion total used account*/
+unsigned long ion_total(void);
+#endif /*VENDOR_EDIT*/
 /**
  * ion_client_destroy() -  free's a client and all it's handles
  * @client:	the client
@@ -172,5 +175,24 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client,
  * another exporter is passed in this function will return ERR_PTR(-EINVAL)
  */
 struct ion_handle *ion_import_dma_buf_fd(struct ion_client *client, int fd);
+
+/**
+ * ion_phys - returns the physical address and len of a handle
+ * @client:	the client
+ * @handle:	the handle
+ * @addr:	a pointer to put the address in
+ * @len:	a pointer to put the length in
+ *
+ * This function queries the heap for a particular handle to get the
+ * handle's physical address.  It't output is only correct if
+ * a heap returns physically contiguous memory -- in other cases
+ * this api should not be implemented -- ion_sg_table should be used
+ * instead.  Returns -EINVAL if the handle is invalid.  This has
+ * no implications on the reference counting of the handle --
+ * the returned value may not be valid if the caller is not
+ * holding a reference.
+ */
+int ion_phys(struct ion_client *client, struct ion_handle *handle,
+	     ion_phys_addr_t *addr, size_t *len);
 
 #endif /* _LINUX_ION_H */

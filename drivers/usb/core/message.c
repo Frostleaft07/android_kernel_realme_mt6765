@@ -46,7 +46,12 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 	struct api_context ctx;
 	unsigned long expire;
 	int retval;
+	unsigned long default_timeout = MAX_SCHEDULE_TIMEOUT;
 
+#ifdef VENDOR_EDIT
+	/*lizhijie@BSP.CHG.Basic 2019/12/27 add for usb debug*/
+	printk(KERN_ERR "%s timeout=%d\n", __func__, timeout);
+#endif
 	init_completion(&ctx.done);
 	urb->context = &ctx;
 	urb->actual_length = 0;
@@ -54,12 +59,15 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 	if (unlikely(retval))
 		goto out;
 
-	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
+	if (usb_endpoint_num(&urb->ep->desc) > 0 && usb_urb_dir_out(urb))
+		default_timeout = 1000;
+
+	expire = timeout ? msecs_to_jiffies(timeout) : default_timeout;
 	if (!wait_for_completion_timeout(&ctx.done, expire)) {
 		usb_kill_urb(urb);
 		retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
 
-		dev_dbg(&urb->dev->dev,
+		dev_info(&urb->dev->dev,
 			"%s timed out on ep%d%s len=%u/%u\n",
 			current->comm,
 			usb_endpoint_num(&urb->ep->desc),

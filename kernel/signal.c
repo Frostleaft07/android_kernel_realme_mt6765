@@ -45,6 +45,11 @@
 #include <asm/cacheflush.h>
 #include "audit.h"	/* audit_signal_info() */
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HANS)
+// Kun.Zhou@ROM.Framework, 2019/09/23, add for hans freeze manager
+#include <linux/hans.h>
+#endif
+
 /*
  * SLAB caches for signal bits.
  */
@@ -840,8 +845,11 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 	sigset_t flush;
 
 	if (signal->flags & (SIGNAL_GROUP_EXIT | SIGNAL_GROUP_COREDUMP)) {
-		if (!(signal->flags & SIGNAL_GROUP_EXIT))
-			return sig == SIGKILL;
+		if (signal->flags & SIGNAL_GROUP_COREDUMP) {
+			pr_debug("[%d:%s] skip sig %d due to coredump is doing\n",
+					p->pid, p->comm, sig);
+			return 0;
+		}
 		/*
 		 * The process is in the middle of dying, nothing to do.
 		 */
@@ -1021,6 +1029,10 @@ static inline void userns_fixup_signal_uid(struct siginfo *info, struct task_str
 }
 #endif
 
+#ifdef VENDOR_EDIT
+/*fanhui@PhoneSW.BSP, 2016-06-21, DeathHealer, record the SIGSTOP sender*/
+extern char last_stopper_comm[];
+#endif
 static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			int group, int from_ancestor_ns)
 {
@@ -1032,6 +1044,12 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	assert_spin_locked(&t->sighand->siglock);
 
 	result = TRACE_SIGNAL_IGNORED;
+#if defined(VENDOR_EDIT) && defined(CONFIG_DEATH_HEALER)
+/*fanhui@PhoneSW.BSP, 2016-06-21, DeathHealer, record the SIGSTOP sender*/
+	if (sig == SIGSTOP && (!strncmp(t->comm,"main", TASK_COMM_LEN) ||
+		!strncmp(t->comm,"system_server", TASK_COMM_LEN) || !strncmp(t->comm,"surfaceflinger", TASK_COMM_LEN)))
+		snprintf(last_stopper_comm, 64, "%s[%d]", current->comm, current->pid);
+#endif
 	if (!prepare_signal(sig, t,
 			from_ancestor_ns || (info == SEND_SIG_PRIV) || (info == SEND_SIG_FORCED)))
 		goto ret;
@@ -1188,6 +1206,16 @@ int do_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
 {
 	unsigned long flags;
 	int ret = -ESRCH;
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HANS)
+// Kun.Zhou@ROM.Framework, 2019/09/23, add for hans freeze manager
+	if (is_frozen_tg(p)  /*signal receiver thread group is frozen?*/
+		&& (sig == SIGKILL || sig == SIGTERM || sig == SIGABRT || sig == SIGQUIT)) {
+		if (hans_report(SIGNAL, task_tgid_nr(current), task_uid(p).val, "signal", -1) == HANS_ERROR) {
+			printk(KERN_ERR "HANS: report signal failed, sig = %d, caller = %d, target_uid = %d\n", sig, task_tgid_nr(current), task_uid(p).val);
+		}
+	}
+#endif
 
 	if (lock_task_sighand(p, &flags)) {
 		ret = send_signal(sig, info, p, group);

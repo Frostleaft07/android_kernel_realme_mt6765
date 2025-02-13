@@ -100,9 +100,17 @@ int usb_choose_configuration(struct usb_device *udev)
 		 */
 
 		/* Rule out configs that draw too much bus current */
+#ifdef VENDOR_EDIT
+/* lizhijie@BSP.CHG.Basic, 2019/11/23, lzj Add for Apple USB-C switch */
+		pr_info("usb_choose_configuration max_power %u, bus_mA %u \n",
+			usb_get_max_power(udev, c), udev->bus_mA);
+#endif
 		if (usb_get_max_power(udev, c) > udev->bus_mA) {
+#ifndef VENDOR_EDIT
+/* lizhijie@BSP.CHG.Basic, 2019/11/23, lzj Delete for Apple USB-C switch */
 			insufficient_power++;
 			continue;
+#endif
 		}
 
 		/* When the first config's first interface is one of Microsoft's

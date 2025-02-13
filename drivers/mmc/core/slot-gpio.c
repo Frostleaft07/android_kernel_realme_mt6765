@@ -30,11 +30,23 @@ struct mmc_gpio {
 	char cd_label[0];
 };
 
+#ifdef ODM_WT_EDIT
+//Haibo.Dong@ODM_WT.BSP.Storage.Sdcard, 2020/04/07, Add for T-card ldo and eint state
+extern unsigned int cd_gpio;
+extern unsigned int cd_ldo_gpio;
+#endif /*ODM_WT_EDIT*/
+
 static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 {
 	/* Schedule a card detection after a debounce timeout */
 	struct mmc_host *host = dev_id;
-
+#ifdef ODM_WT_EDIT
+//Haibo.Dong@ODM_WT.BSP.Storage.Sdcard, 2020/04/07, Add for T-card ldo and eint state
+	if(!(__gpio_get_value(cd_gpio)))
+	{
+		__gpio_set_value(cd_ldo_gpio, 0);
+	}
+#endif /*ODM_WT_EDIT*/
 	host->trigger_card_event = true;
 	mmc_detect_change(host, msecs_to_jiffies(200));
 
@@ -141,10 +153,13 @@ void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 			ctx->cd_gpio_isr = mmc_gpio_cd_irqt;
 		ret = devm_request_threaded_irq(host->parent, irq,
 			NULL, ctx->cd_gpio_isr,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
+			| IRQF_ONESHOT,
 			ctx->cd_label, host);
 		if (ret < 0)
 			irq = ret;
+		else
+			enable_irq_wake(irq);
 	}
 
 	host->slot.cd_irq = irq;
