@@ -87,6 +87,10 @@ enum rq_cmd_type_bits {
  */
 struct request {
 	struct list_head queuelist;
+#ifdef VENDOR_EDIT
+/*Huacai.Zhou@PSW.BSP.Kernel.Performance, 2018-04-28, add foreground task io opt*/
+	struct list_head fg_list;
+#endif /*VENDOR_EDIT*/
 	union {
 		struct call_single_data csd;
 		u64 fifo_time;
@@ -196,6 +200,9 @@ struct request {
 
 	/* for bidi */
 	struct request *next_rq;
+
+	ktime_t			lat_hist_io_start;
+	int			lat_hist_enabled;
 };
 
 #define REQ_OP_SHIFT (8 * sizeof(u64) - REQ_OP_BITS)
@@ -297,6 +304,14 @@ struct request_queue {
 	 * Together with queue_head for cacheline sharing
 	 */
 	struct list_head	queue_head;
+#ifdef VENDOR_EDIT
+	/*Huacai.Zhou@PSW.BSP.Kernel.Performance, 2018-04-28, add foreground task io opt*/
+	struct list_head	fg_head;
+	int fg_count;
+	int both_count;
+	int fg_count_max;
+	int both_count_max;
+#endif /*VENDOR*/
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
 	int			nr_rqs[2];	/* # allocated [a]sync rqs */
@@ -342,7 +357,7 @@ struct request_queue {
 	 */
 	struct delayed_work	delay_work;
 
-	struct backing_dev_info	backing_dev_info;
+	struct backing_dev_info	*backing_dev_info;
 
 	/*
 	 * The queue owner gets to use this for whatever they like.
@@ -411,7 +426,13 @@ struct request_queue {
 	struct list_head	tag_busy_list;
 
 	unsigned int		nr_sorted;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Modify for ioqueue
+	unsigned int		in_flight[4];
+#else
 	unsigned int		in_flight[2];
+#endif /*VENDOR_EDIT*/
 	/*
 	 * Number of active block driver functions for which blk_drain_queue()
 	 * must wait. Must be incremented around functions that unlock the
@@ -516,6 +537,38 @@ struct request_queue {
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
 				 (1 << QUEUE_FLAG_POLL))
 
+/* MTK PATCH */
+/* Block r/w size profiling */
+#ifdef CONFIG_MTK_BLK_RW_PROFILING
+#define BLKRNUM    _IO(0x12, 10) /* get block device read number */
+#define BLKWNUM    _IO(0x12, 11) /* get block device write number */
+#define BLKRWNUM   _IO(0x12, 12) /* get block device read write number */
+#define BLKRWCLR   _IO(0x12, 13) /* clear block device read write number */
+
+#define CHECK_SIZE_LIMIT (512*1024)
+#define FS_RW_UNIT (0x1000)
+#define RW_ARRAY_SIZE (256)
+
+struct block_rw_profiling {
+	__u32 buf_byte;
+	/*
+	 * placeholder for the start address of the data buffer where kernel
+	 * will copy the data.
+	 */
+	__u8 *buf_ptr;
+};
+
+enum block_rw_enum {
+	blockread = 0,
+	blockwrite = 1,
+	blockrw = 2,
+};
+
+void mtk_trace_block_rq_get_rw_counter(u32 *temp_buf,
+	enum block_rw_enum operation);
+int mtk_trace_block_rq_get_rw_counter_clr(void);
+#endif
+
 static inline void queue_lockdep_assert_held(struct request_queue *q)
 {
 	if (q->queue_lock)
@@ -576,6 +629,46 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	queue_lockdep_assert_held(q);
 	__clear_bit(flag, &q->queue_flags);
 }
+#ifdef VENDOR_EDIT
+/*Huacai.Zhou@PSW.BSP.Kernel.Performance, 2018-04-28, add foreground task io opt*/
+extern unsigned int sysctl_fg_io_opt;
+static inline void queue_throtl_add_request(struct request_queue *q,
+					    struct request *rq, bool front)
+{
+	struct list_head *head;
+	if (!sysctl_fg_io_opt)
+		return;
+	if (rq->cmd_flags & REQ_FG) {
+		head = &q->fg_head;
+		if (front)
+			list_add(&rq->fg_list, head);
+		else
+			list_add_tail(&rq->fg_list, head);
+	}
+}
+#endif /*VENDOR_EDIT*/
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Add for ioqueue
+static inline void ohm_ioqueue_add_inflight(struct request_queue *q,
+                                            struct request *rq)
+{
+       if (rq->cmd_flags & REQ_FG)
+               q->in_flight[BLK_RW_FG]++;
+       else
+               q->in_flight[BLK_RW_BG]++;
+}
+
+static inline void ohm_ioqueue_dec_inflight(struct request_queue *q,
+                                            struct request *rq)
+{
+       if (rq->cmd_flags & REQ_FG)
+               q->in_flight[BLK_RW_FG]--;
+       else
+               q->in_flight[BLK_RW_BG]--;
+}
+#endif /*VENDOR_EDIT*/
 
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
@@ -1025,7 +1118,6 @@ extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
-extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);
@@ -1688,6 +1780,7 @@ struct block_device_operations {
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+	int (*check_disk_range_wp)(struct gendisk *d, sector_t s, sector_t l);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };
@@ -1700,6 +1793,72 @@ extern int bdev_write_page(struct block_device *, sector_t, struct page *,
 extern long bdev_direct_access(struct block_device *, struct blk_dax_ctl *);
 extern int bdev_dax_supported(struct super_block *, int);
 extern bool bdev_dax_capable(struct block_device *);
+
+/*
+ * X-axis for IO latency histogram support.
+ */
+static const u_int64_t latency_x_axis_us[] = {
+	100,
+	200,
+	300,
+	400,
+	500,
+	600,
+	700,
+	800,
+	900,
+	1000,
+	1200,
+	1400,
+	1600,
+	1800,
+	2000,
+	2500,
+	3000,
+	4000,
+	5000,
+	6000,
+	7000,
+	9000,
+	10000
+#ifdef VENDOR_EDIT
+//yh@BSP.Storage.UFS, 2019-02-19 add for ufs fw upgrade/health info
+	,20000
+	,40000
+	,60000
+	,80000
+	,100000
+	,150000
+	,200000
+#endif
+};
+
+#define BLK_IO_LAT_HIST_DISABLE         0
+#define BLK_IO_LAT_HIST_ENABLE          1
+#define BLK_IO_LAT_HIST_ZERO            2
+
+struct io_latency_state {
+	u_int64_t	latency_y_axis[ARRAY_SIZE(latency_x_axis_us) + 1];
+	u_int64_t	latency_elems;
+	u_int64_t	latency_sum;
+};
+
+static inline void
+blk_update_latency_hist(struct io_latency_state *s, u_int64_t delta_us)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(latency_x_axis_us); i++)
+		if (delta_us < (u_int64_t)latency_x_axis_us[i])
+			break;
+	s->latency_y_axis[i]++;
+	s->latency_elems++;
+	s->latency_sum += delta_us;
+}
+
+ssize_t blk_latency_hist_show(char* name, struct io_latency_state *s,
+		char *buf, int buf_size);
+
 #else /* CONFIG_BLOCK */
 
 struct block_device;

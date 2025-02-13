@@ -418,7 +418,7 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
-			   htons(ireq->ir_num));
+			   htons(ireq->ir_num), sk->sk_uid);
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
@@ -456,7 +456,7 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
-			   htons(ireq->ir_num));
+			   htons(ireq->ir_num), sk->sk_uid);
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
@@ -959,6 +959,16 @@ struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu)
 			goto out;
 	}
 	dst->ops->update_pmtu(dst, sk, NULL, mtu);
+
+        #ifdef VENDOR_EDIT
+	//Rongzheng.tang@PSW.CN.WiFi.Network.internet.1066205, 2016/11/03,
+	//Add for [873764] when receives ICMP_FRAG_NEEDED, reduces the mtu of net_device.
+	pr_err("%s: current_mtu = %d , frag_mtu = %d \n", __func__, dst->dev->mtu, dst_mtu(dst));
+
+	if(dst->dev->mtu > dst_mtu(dst) && dst_mtu(dst) > IPV6_MIN_MTU) {
+		dst->dev->mtu = dst_mtu(dst);
+	}
+	#endif /* VENDOR_EDIT */
 
 	dst = __sk_dst_check(sk, 0);
 	if (!dst)

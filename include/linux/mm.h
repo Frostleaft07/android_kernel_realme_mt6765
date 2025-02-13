@@ -1155,7 +1155,10 @@ extern void pagefault_out_of_memory(void);
 
 extern void show_free_areas(unsigned int flags);
 extern bool skip_free_areas_node(unsigned int flags, int nid);
+extern void show_task_mem(void);
+extern void oom_dump_extra_info(void);
 
+void shmem_set_file(struct vm_area_struct *vma, struct file *file);
 int shmem_zero_setup(struct vm_area_struct *);
 #ifdef CONFIG_SHMEM
 bool shmem_mapping(struct address_space *mapping);
@@ -1797,6 +1800,8 @@ static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
 	return ptl;
 }
 
+extern void __init pagecache_init(void);
+
 extern void free_area_init(unsigned long * zones_size);
 extern void free_area_init_node(int nid, unsigned long * zones_size,
 		unsigned long zone_start_pfn, unsigned long *zholes_size);
@@ -1930,6 +1935,7 @@ extern void set_dma_reserve(unsigned long new_dma_reserve);
 extern void memmap_init_zone(unsigned long, int, unsigned long,
 				unsigned long, enum memmap_context);
 extern void setup_per_zone_wmarks(void);
+extern void update_kswapd_threads(void);
 extern int __meminit init_per_zone_wmark_min(void);
 extern void mem_init(void);
 extern void __init mmap_init(void);
@@ -1950,6 +1956,7 @@ extern void zone_pcp_update(struct zone *zone);
 extern void zone_pcp_reset(struct zone *zone);
 
 /* page_alloc.c */
+extern int kswapd_threads;
 extern int min_free_kbytes;
 extern int watermark_scale_factor;
 
@@ -2003,7 +2010,7 @@ static inline int vma_adjust(struct vm_area_struct *vma, unsigned long start,
 extern struct vm_area_struct *vma_merge(struct mm_struct *,
 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
-	struct mempolicy *, struct vm_userfaultfd_ctx);
+	struct mempolicy *, struct vm_userfaultfd_ctx, const char __user *);
 extern struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *);
 extern int split_vma(struct mm_struct *,
 	struct vm_area_struct *, unsigned long addr, int new_below);
@@ -2135,7 +2142,12 @@ int write_one_page(struct page *page, int wait);
 void task_dirty_inc(struct task_struct *tsk);
 
 /* readahead.c */
+#ifndef VENDOR_EDIT
+/* ZhiJie.Li@BSP.CHG.Basic, 2019/10/29, lzj Modify for increasing the default max readahead to speed-up reading */
 #define VM_MAX_READAHEAD	128	/* kbytes */
+#else
+#define VM_MAX_READAHEAD	512	/* kbytes */
+#endif
 #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
 
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
@@ -2508,6 +2520,44 @@ void __init setup_nr_node_ids(void);
 #else
 static inline void setup_nr_node_ids(void) {}
 #endif
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-07,
+ * add process reclaim parameters */
+struct reclaim_param {
+	struct vm_area_struct *vma;
+	/* Number of pages scanned */
+	int nr_scanned;
+	/* max pages to reclaim */
+	int nr_to_reclaim;
+	/* pages reclaimed */
+	int nr_reclaimed;
+#if defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+	/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-07,
+	 * flag that relcaim inactive pages only */
+	bool inactive_lru;
+#endif
+	/* robin.ren@PSW.BSP.Kernel.Performance, 2019-03-13,
+	 * the target reclaimed process
+	 */
+	struct task_struct *reclaimed_task;
+};
+
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2019-01-01,
+ * Extract the reclaim core code from task_mmu.c for /proc/process_reclaim*/
+extern ssize_t reclaim_task_write(struct task_struct *task,
+		char *buffer);
+
+#define PR_PASS		0
+#define PR_SEM_OUT	1
+#define PR_TASK_FG	2
+#define PR_TIME_OUT	3
+#define PR_ADDR_OVER	4
+#define PR_FULL		5
+#define PR_TASK_RUN	6
+#define PR_TASK_DIE	7
+#endif /* VENDOR_EDIT && CONFIG_PROCESS_RECLAIM */
+
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

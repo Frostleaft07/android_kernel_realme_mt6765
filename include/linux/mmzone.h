@@ -35,6 +35,8 @@
  */
 #define PAGE_ALLOC_COSTLY_ORDER 3
 
+#define MAX_KSWAPD_THREADS 16
+
 enum {
 	MIGRATE_UNMOVABLE,
 	MIGRATE_MOVABLE,
@@ -86,6 +88,12 @@ extern int page_group_by_mobility_disabled;
 #define get_pageblock_migratetype(page)					\
 	get_pfnblock_flags_mask(page, page_to_pfn(page),		\
 			PB_migrate_end, MIGRATETYPE_MASK)
+
+static inline int get_pfnblock_migratetype(struct page *page, unsigned long pfn)
+{
+	return get_pfnblock_flags_mask(page, pfn, PB_migrate_end,
+					MIGRATETYPE_MASK);
+}
 
 struct free_area {
 	struct list_head	free_list[MIGRATE_TYPES];
@@ -139,6 +147,10 @@ enum zone_stat_item {
 	NUMA_OTHER,		/* allocation from other node */
 #endif
 	NR_FREE_CMA_PAGES,
+#ifdef VENDOR_EDIT
+/*Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-09-25, add ion cached account*/
+	NR_IONCACHE_PAGES,
+#endif /* VENDOR_EDIT */
 	NR_VM_ZONE_STAT_ITEMS };
 
 enum node_stat_item {
@@ -153,6 +165,7 @@ enum node_stat_item {
 	NR_PAGES_SCANNED,	/* pages scanned since last reclaim */
 	WORKINGSET_REFAULT,
 	WORKINGSET_ACTIVATE,
+	WORKINGSET_RESTORE,
 	WORKINGSET_NODERECLAIM,
 	NR_ANON_MAPPED,	/* Mapped anonymous pages */
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
@@ -351,6 +364,7 @@ struct zone {
 	unsigned long watermark[NR_WMARK];
 
 	unsigned long nr_reserved_highatomic;
+
 
 	/*
 	 * We don't know if the memory that we're going to allocate will be
@@ -581,6 +595,9 @@ struct zonelist {
 #ifndef CONFIG_DISCONTIGMEM
 /* The array of struct pages - for discontigmem use pgdat->lmem_map */
 extern struct page *mem_map;
+#ifdef CONFIG_MTK_MEMCFG
+extern unsigned long mem_map_size;
+#endif
 #endif
 
 /*
@@ -628,9 +645,12 @@ typedef struct pglist_data {
 	int node_id;
 	wait_queue_head_t kswapd_wait;
 	wait_queue_head_t pfmemalloc_wait;
-	struct task_struct *kswapd;	/* Protected by
-					   mem_hotplug_begin/end() */
-	int kswapd_order;
+
+    /*
+     * Protected by mem_hotplug_begin/end()
+     */
+    struct task_struct *kswapd[MAX_KSWAPD_THREADS];
+    int kswapd_order;
 	enum zone_type kswapd_classzone_idx;
 
 	int kswapd_failures;		/* Number of 'reclaimed == 0' runs */
@@ -864,6 +884,8 @@ static inline int is_highmem(struct zone *zone)
 
 /* These two functions are used to setup the per zone pages min values */
 struct ctl_table;
+int kswapd_threads_sysctl_handler(struct ctl_table *, int,
+					void __user *, size_t *, loff_t *);
 int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
 int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,

@@ -30,8 +30,10 @@ Currently, these files are in /proc/sys/vm:
 - dirty_writeback_centisecs
 - drop_caches
 - extfrag_threshold
+- extra_free_kbytes
 - hugepages_treat_as_movable
 - hugetlb_shm_group
+- kswapd_threads
 - laptop_mode
 - legacy_va_layout
 - lowmem_reserve_ratio
@@ -240,6 +242,21 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
 
 ==============================================================
 
+extra_free_kbytes
+
+This parameter tells the VM to keep extra free memory between the threshold
+where background reclaim (kswapd) kicks in, and the threshold where direct
+reclaim (by allocating processes) kicks in.
+
+This is useful for workloads that require low latency memory allocations
+and have a bounded burstiness in memory allocations, for example a
+realtime application that receives and transmits network traffic
+(causing in-kernel memory allocations) with a maximum total message burst
+size of 200MB may need 200MB of extra free memory to avoid direct reclaim
+related latencies.
+
+==============================================================
+
 hugepages_treat_as_movable
 
 This parameter controls whether we can allocate hugepages from ZONE_MOVABLE
@@ -268,6 +285,28 @@ hugetlb_shm_group
 
 hugetlb_shm_group contains group id that is allowed to create SysV
 shared memory segment using hugetlb page.
+
+==============================================================
+
+kswapd_threads
+
+kswapd_threads allows you to control the number of kswapd threads per node
+running on the system. This provides the ability to devote additional CPU
+resources toward proactive page replacement with the goal of reducing
+direct reclaims. When direct reclaims are prevented, the CPU consumed
+by them is prevented as well. Depending on the workload, the result can
+cause aggregate CPU usage on the system to go up, down or stay the same.
+
+More aggressive page replacement can reduce direct reclaims which cause
+latency for tasks and decrease throughput when doing filesystem IO through
+the pagecache. Direct reclaims are recorded using the allocstall counter
+in /proc/vmstat.
+
+The default value is 1 and the range of acceptible values are 1-16.
+Always start with lower values in the 2-6 range. Higher values should
+be justified with testing. If direct reclaims occur in spite of high
+values, the cost of direct reclaims (in latency) that occur can be
+higher due to increased lock contention.
 
 ==============================================================
 

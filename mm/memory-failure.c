@@ -981,7 +981,14 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	if (kill)
 		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+	/* Kui.Zhang@PSW.TEC.Kernel.Performance. 2019/01/16,
+	 * adapte the new interface
+	 */
+	ret = try_to_unmap(hpage, ttu, NULL);
+#else
 	ret = try_to_unmap(hpage, ttu);
+#endif
 	if (ret != SWAP_SUCCESS)
 		pr_err("Memory failure: %#lx: failed to unmap page (mapcount=%d)\n",
 		       pfn, page_mapcount(hpage));

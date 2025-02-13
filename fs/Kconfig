@@ -227,6 +227,7 @@ source "fs/orangefs/Kconfig"
 source "fs/adfs/Kconfig"
 source "fs/affs/Kconfig"
 source "fs/ecryptfs/Kconfig"
+source "fs/sdcardfs/Kconfig"
 source "fs/hfs/Kconfig"
 source "fs/hfsplus/Kconfig"
 source "fs/befs/Kconfig"
@@ -309,4 +310,8 @@ endif # NETWORK_FILESYSTEMS
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 
+#ifdef VENDOR_EDIT
+#Xinhua.Song@BSP.Driver, 2015/04/03, Add for exfat filesystem
+source "fs/exfat/Kconfig"
+#endif /*VENDOR_EDIT*/
 endmenu

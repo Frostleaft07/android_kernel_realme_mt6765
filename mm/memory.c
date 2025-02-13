@@ -84,6 +84,11 @@
 unsigned long max_mapnr;
 struct page *mem_map;
 
+#ifdef CONFIG_MTK_MEMCFG
+unsigned long mem_map_size;
+EXPORT_SYMBOL(mem_map_size);
+#endif
+
 EXPORT_SYMBOL(max_mapnr);
 EXPORT_SYMBOL(mem_map);
 #endif
@@ -921,6 +926,12 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	spinlock_t *src_ptl, *dst_ptl;
 	int progress = 0;
 	int rss[NR_MM_COUNTERS];
+
+#ifdef VENDOR_EDIT
+	/* yanghao@BSP.Kenrel.Stability, 2019/01/24, Add for fix system pthread_mutex_lock memory error casued anr problem */
+	unsigned long orig_addr = addr;
+#endif
+
 	swp_entry_t entry = (swp_entry_t){0};
 
 again:
@@ -959,6 +970,18 @@ again:
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 
 	arch_leave_lazy_mmu_mode();
+
+#ifdef VENDOR_EDIT
+	/* yanghao@BSP.Kenrel.Stability, 2019/01/24, Add for fix system pthread_mutex_lock memory error casued anr problem */
+	/*
+	 * Prevent the page fault handler to copy the page while stale tlb entry
+	 * are still not flushed.
+	 */
+	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT) &&
+			is_cow_mapping(vma->vm_flags))
+		flush_tlb_range(vma, orig_addr, end);
+#endif
+
 	spin_unlock(src_ptl);
 	pte_unmap(orig_src_pte);
 	add_mm_rss_vec(dst_mm, rss);
@@ -2554,7 +2577,8 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
 	page = lookup_swap_cache(entry);
 	if (!page) {
 		page = swapin_readahead(entry,
-					GFP_HIGHUSER_MOVABLE, vma, fe->address);
+					GFP_HIGHUSER_MOVABLE | __GFP_CMA,
+					vma, fe->address);
 		if (!page) {
 			/*
 			 * Back out if somebody else faulted in this pte

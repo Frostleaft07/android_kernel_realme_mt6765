@@ -68,7 +68,10 @@
 
 #include <asm/futex.h>
 
+#include <mt-plat/fpsgo_common.h>
+
 #include "locking/rtmutex_common.h"
+
 
 /*
  * READ this before attempting to hack on futexes!
@@ -1431,6 +1434,7 @@ futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 	if (!hb_waiters_pending(hb))
 		goto out_put_key;
 
+
 	spin_lock(&hb->lock);
 
 	plist_for_each_entry_safe(this, next, &hb->chain, list) {
@@ -2368,8 +2372,17 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 		 * flagged for rescheduling. Only call schedule if there
 		 * is no timeout, or if it has yet to expire.
 		 */
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Liujie.Xie@TECH.Kernel.Sched, 2019/08/29, add for stuck monitor
+        if (!timeout || timeout->task) {
+            current->in_futex = 1;
+            freezable_schedule();
+            current->in_futex = 0;
+        }
+#else
 		if (!timeout || timeout->task)
 			freezable_schedule();
+#endif
 	}
 	__set_current_state(TASK_RUNNING);
 }
@@ -2472,6 +2485,7 @@ static int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
 		hrtimer_init_sleeper(to, current);
 		hrtimer_set_expires_range_ns(&to->timer, *abs_time,
 					     current->timer_slack_ns);
+		xgf_igather_timer(&to->timer, 1);
 	}
 
 retry:
@@ -2518,6 +2532,7 @@ retry:
 
 out:
 	if (to) {
+		xgf_igather_timer(&to->timer, to->task ? -1 : 0);
 		hrtimer_cancel(&to->timer);
 		destroy_hrtimer_on_stack(&to->timer);
 	}

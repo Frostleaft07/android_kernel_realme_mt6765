@@ -14,6 +14,11 @@
 
 #include "internals.h"
 
+#ifdef VENDOR_EDIT
+// zhijie.Li@BSP.CHG.Basic, 2019/11/01  Add for delete log in release version
+extern bool oppo_daily_build(void);
+#endif
+
 static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
@@ -72,10 +77,18 @@ void irq_migrate_all_off_this_cpu(void)
 		raw_spin_lock(&desc->lock);
 		affinity_broken = migrate_one_irq(desc);
 		raw_spin_unlock(&desc->lock);
-
+#ifndef VENDOR_EDIT
+// Nanwei.Deng@BSP.CHG.Basic, 2018/07/13  Add for delete log in release version
 		if (affinity_broken)
 			pr_warn_ratelimited("IRQ%u no longer affine to CPU%u\n",
 					    irq, smp_processor_id());
+#else
+		if (oppo_daily_build() == true) {
+			if (affinity_broken)
+				pr_warn_ratelimited("IRQ%u no longer affine to CPU%u\n",
+					    irq, smp_processor_id());
+		}
+#endif /*VENDOR_EDIT*/
 	}
 
 	local_irq_restore(flags);

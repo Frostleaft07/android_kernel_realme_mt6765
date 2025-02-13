@@ -183,6 +183,12 @@ struct sock_common {
 	struct proto		*skc_prot;
 	possible_net_t		skc_net;
 
+	//#ifdef VENDOR_EDIT
+	//Junyuan.Huang@PSW.CN.WiFi.Network.internet.1197891, 2018/04/10,
+	//Add code for appo sla function
+	u32 skc_oppo_mark;
+	//#endif /* VENDOR_EDIT */
+
 #if IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr		skc_v6_daddr;
 	struct in6_addr		skc_v6_rcv_saddr;
@@ -343,6 +349,12 @@ struct sock {
 #define sk_flags		__sk_common.skc_flags
 #define sk_rxhash		__sk_common.skc_rxhash
 
+//#ifdef VENDOR_EDIT
+//Junyuan.Huang@PSW.CN.WiFi.Network.internet.1197891, 2018/04/10,
+//Add code for appo sla function
+#define oppo_sla_mark   __sk_common.skc_oppo_mark
+//#endif /* VENDOR_EDIT */
+
 	socket_lock_t		sk_lock;
 	struct sk_buff_head	sk_receive_queue;
 	/*
@@ -420,6 +432,7 @@ struct sock {
 	u32			sk_max_ack_backlog;
 	__u32			sk_priority;
 	__u32			sk_mark;
+	kuid_t			sk_uid;
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
 	long			sk_rcvtimeo;
@@ -1657,12 +1670,18 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	sk->sk_wq = parent->wq;
 	parent->sk = sk;
 	sk_set_socket(sk, parent);
+	sk->sk_uid = SOCK_INODE(parent)->i_uid;
 	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
 kuid_t sock_i_uid(struct sock *sk);
 unsigned long sock_i_ino(struct sock *sk);
+
+static inline kuid_t sock_net_uid(const struct net *net, const struct sock *sk)
+{
+	return sk ? sk->sk_uid : make_kuid(net->user_ns, 0);
+}
 
 static inline u32 net_tx_rndhash(void)
 {

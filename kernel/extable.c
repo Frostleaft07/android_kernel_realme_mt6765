@@ -32,6 +32,7 @@
  */
 DEFINE_MUTEX(text_mutex);
 
+
 extern struct exception_table_entry __start___ex_table[];
 extern struct exception_table_entry __stop___ex_table[];
 
