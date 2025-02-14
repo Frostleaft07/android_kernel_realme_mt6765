@@ -7,3 +7,21 @@ config HATSUNE_Q_DISP
      jika rom masih bug kecerahan coba atur "Y" konfigurasi ini, mungkin dapat membantu Anda, Android Q direkomendasikan untuk memperbaiki kecerahan rendah, file "android.hardware.light@2.0-service-mediatek" diperlukan untuk GSI, periksa rilis repo.
 
 endmenu
+
+menu "Fingerprint Platform"
+
+config OPPO_BSP_SECCOM_PLATFORM
+    int "OPPO BSP Seccom Platform"
+    default 6765
+    help
+      This option configures the OPPO BSP Seccom Platform version, set this value to match the platform version you are targeting
+      It is used for platform-specific features and configurations.
+
+config OPPO_FINGERPRINT_PLATFORM
+    int "OPPO Fingerprint Platform"
+    default 6765
+    help
+      This option configures the OPPO Fingerprint Platform version, set this value to match the platform version you are targeting
+      It is used for configuring fingerprint-related features and settings.
+
+endmenu
