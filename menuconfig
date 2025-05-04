@@ -1,3 +1,3 @@
-make CC=clang ARCH=arm64 O=out nethunter_defconfig menuconfig
+make CC=clang ARCH=arm64 O=out nethunter_defconfig nconfig
 
-mv out/.config nethunter_defconfig && mv nethunter_defconfig arch/arm64/configs/
+mv out/.config arch/arm64/configs/nethunter_defconfig
