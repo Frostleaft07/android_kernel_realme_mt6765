@@ -161,3 +161,4 @@ config CAN_DEBUG_DEVICES
 endmenu
 
 source "drivers/net/can/usb-can-2-module/Kconfig"
+source "drivers/net/can/can-isotp/Kconfig"
