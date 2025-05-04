@@ -1,0 +1,4 @@
+config CAN_ISOTP
+        tristate "CAN ISO 15765-2 driver"
+        help
+          Help message of CAN ISO 15765-2
