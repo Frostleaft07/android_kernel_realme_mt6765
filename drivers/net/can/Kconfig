@@ -159,3 +159,5 @@ config CAN_DEBUG_DEVICES
 	  on.
 
 endmenu
+
+source "drivers/net/can/usb-can-2-module/Kconfig"
