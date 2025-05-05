@@ -1296,7 +1296,6 @@ static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb
   #endif
 #endif
 )
-
 {
 	_adapter	*padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1513,6 +1512,12 @@ struct net_device *rtw_init_netdev(_adapter *old_padapter)
 
 	if (!pnetdev)
 		return NULL;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
+	pnetdev->min_mtu = WLAN_MIN_ETHFRM_LEN;
+	pnetdev->mtu = WLAN_DATA_MAXLEN;
+	pnetdev->max_mtu = WLAN_DATA_MAXLEN;
+#endif
 
 	padapter = rtw_netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
@@ -2438,7 +2443,7 @@ void rtw_cancel_all_timer(_adapter *padapter)
 	_cancel_timer_ex(&pmlmeext->survey_timer);
 	_cancel_timer_ex(&pmlmeext->link_timer);
 #ifdef CONFIG_IEEE80211W
-	_cancel_timer_ex(&pmlmeext->sa_query_timer);
+	_cancel_timer_ex(&pmlmeext->sa_query_seq);
 	/* cancel dm timer */
 #endif
 
