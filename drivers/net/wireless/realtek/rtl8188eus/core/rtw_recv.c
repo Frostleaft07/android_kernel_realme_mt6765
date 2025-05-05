@@ -623,6 +623,46 @@ union recv_frame *decryptor(_adapter *padapter, union recv_frame *precv_frame)
 			res = rtw_tkip_decrypt(padapter, (u8 *)precv_frame);
 			break;
 		case _AES_:
+#ifdef CONFIG_WIFI_DATA_AES_SW_DECRYPTION_DISABLED
+                        if (GetFrameType(get_recvframe_data(precv_frame)) == WIFI_DATA) {
+#ifdef CONFIG_RTW_DEBUG
+                          if (prxattrib->seq_num % 100 == 0) {
+                            struct sta_info *stainfo;
+                            u8 *prwskey;
+
+                            stainfo = rtw_get_stainfo(&padapter->stapriv , &prxattrib->ta[0]);
+                            prwskey = &stainfo->dot118021x_UncstKey.skey[0];
+
+                            if(stainfo != NULL) {
+                              RTW_INFO("[%s:%d]: dropping encrypted data frame: key="KEY_FMT" busetkipkey=%d seq_num=%d src="MAC_FMT" dst="MAC_FMT" ta="MAC_FMT" ra="MAC_FMT"\n",
+                                  __FUNCTION__,
+                                  __LINE__,
+                                  KEY_ARG(prwskey),
+                                  psecuritypriv->busetkipkey,
+                                  prxattrib->seq_num,
+                                  MAC_ARG(prxattrib->src),
+                                  MAC_ARG(prxattrib->dst),
+                                  MAC_ARG(prxattrib->ta),
+                                  MAC_ARG(prxattrib->ra)
+                              );
+                            } else {
+                              RTW_INFO("[%s:%d]: dropping encrypted data frame: stainfo==NULL busetkipkey=%d seq_num=%d src="MAC_FMT" dst="MAC_FMT" ta="MAC_FMT" ra="MAC_FMT"\n",
+                                  __FUNCTION__,
+                                  __LINE__,
+                                  psecuritypriv->busetkipkey,
+                                  prxattrib->seq_num,
+                                  MAC_ARG(prxattrib->src),
+                                  MAC_ARG(prxattrib->dst),
+                                  MAC_ARG(prxattrib->ta),
+                                  MAC_ARG(prxattrib->ra)
+                              );
+                            }
+                          }
+#endif // CONFIG_RTW_DEBUG
+                          res = _FAIL;
+                          break;
+                        }
+#endif // CONFIG_WIFI_DATA_AES_SW_DECRYPTION_DISABLED
 			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_aes);
 			res = rtw_aes_decrypt(padapter, (u8 *)precv_frame);
 			break;
@@ -1968,7 +2008,6 @@ sint validate_recv_mgnt_frame(PADAPTER padapter, union recv_frame *precv_frame)
 		psa = get_sa(ptr);
 		pbssid = get_hdr_bssid(ptr);
 
-
 		_rtw_memcpy(pattrib->dst, pda, ETH_ALEN);
 		_rtw_memcpy(pattrib->src, psa, ETH_ALEN);
 
@@ -2083,7 +2122,6 @@ pre_validate_status_chk:
 	} else if (ret == RTW_RX_HANDLED)
 		goto exit;
 
-
 	if (psta == NULL) {
 		#ifdef DBG_RX_DROP_FRAME
 		RTW_INFO("DBG_RX_DROP_FRAME "FUNC_ADPT_FMT" psta == NULL, ra="MAC_FMT", ta="MAC_FMT"\n"
@@ -2110,7 +2148,6 @@ pre_validate_status_chk:
 		pattrib->priority = 0;
 		pattrib->hdrlen = WLAN_HDR_A3_LEN + a4_shift;
 	}
-
 
 	if (pattrib->order) /* HT-CTRL 11n */
 		pattrib->hdrlen += 4;
@@ -2223,7 +2260,6 @@ sint validate_recv_frame(_adapter *adapter, union recv_frame *precv_frame)
 	u8	external_len = 0;
 #endif
 
-
 #ifdef CONFIG_FIND_BEST_CHANNEL
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		int ch_set_idx = rtw_chset_search_ch(rfctl->channel_set, rtw_get_oper_ch(adapter));
@@ -2334,7 +2370,6 @@ sint validate_recv_frame(_adapter *adapter, union recv_frame *precv_frame)
 				break;
 			}
 		}
-
 #endif
 
 		pattrib->qos = (subtype & BIT(7)) ? 1 : 0;
@@ -2371,11 +2406,8 @@ sint validate_recv_frame(_adapter *adapter, union recv_frame *precv_frame)
 	}
 
 exit:
-
-
 	return retval;
 }
-
 
 /* remove the wlanhdr and add the eth_hdr */
 #if 1
@@ -2393,7 +2425,6 @@ sint wlanhdr_to_ethhdr(union recv_frame *precvframe)
 
 	u8	*ptr = get_recvframe_data(precvframe) ; /* point to frame_ctrl field */
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
-
 
 	if (pattrib->encrypt)
 		recvframe_pull_tail(precvframe, pattrib->icv_len);
@@ -2417,11 +2448,9 @@ sint wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	rmv_len = pattrib->hdrlen + pattrib->iv_len + RATTRIB_GET_MCTRL_LEN(pattrib) + (bsnaphdr ? SNAP_SIZE : 0);
 	len = precvframe->u.hdr.len - rmv_len;
 
-
 	_rtw_memcpy(&eth_type, ptr + rmv_len, 2);
 	eth_type = ntohs((unsigned short)eth_type); /* pattrib->ether_type */
 	pattrib->eth_type = eth_type;
-
 
 	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == _TRUE)) {
 		ptr += rmv_len ;
