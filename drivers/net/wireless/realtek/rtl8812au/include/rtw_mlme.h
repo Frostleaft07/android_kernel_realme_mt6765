@@ -698,7 +698,7 @@ struct nb_rpt_hdr {
 	u8 phy_type;	
 };
 
-/*IEEE Std 80211v, Figure 7-95e2ï¿½XBSS Termination Duration subelement field format */
+/*IEEE Std 80211v, Figure 7-95e2¡XBSS Termination Duration subelement field format */
 struct btm_term_duration {
 	u8 id;
 	u8 len;
@@ -706,7 +706,7 @@ struct btm_term_duration {
 	u16 duration;
 };
 
-/*IEEE Std 80211v, Figure 7-101n8ï¿½XBSS Transition Management Request frame body format */
+/*IEEE Std 80211v, Figure 7-101n8¡XBSS Transition Management Request frame body format */
 struct btm_req_hdr {
 	u8 req_mode;
 	u16 disassoc_timer;
