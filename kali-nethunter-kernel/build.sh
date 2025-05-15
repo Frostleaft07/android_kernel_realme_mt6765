@@ -234,16 +234,10 @@ function verify_sha256 {
 function get_dependencies() {
         info "Installing dependencies"
 	if [ "$suse" = true ]; then
-		for i in $SUSE_DEPEND;
-       		do
-               		sudo zypper in -y $i
-       		done
+               		sudo zypper in -y $SUSE_DEPEND
 	else
         	sudo apt-get update
-		for i in $DEBIAN_DEPEND;
-		do
-                	sudo apt-get install -y $i
-        	done
+        	sudo apt-get install -y $DEBIAN_DEPEND
 	fi
 }
 
