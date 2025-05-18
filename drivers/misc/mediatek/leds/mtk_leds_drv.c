@@ -100,7 +100,12 @@ static int mt65xx_led_set_cust(struct cust_mt65xx_led *cust, int level);
 #ifdef CONTROL_BL_TEMPERATURE
 
 /* define int limit for brightness limitation */
+#ifdef CONFIG_HATSUNE_Q_DISP
+// frostleaft07 personal
+static unsigned int limit = 2047;
+#else
 static unsigned int limit = 255;
+#endif
 static unsigned int limit_flag;
 static unsigned int last_level;
 static unsigned int current_level;
@@ -138,7 +143,11 @@ int setMaxbrightness(int max_level, int enable)
 		}
 	} else {
 		limit_flag = 0;
+		#ifdef CONFIG_HATSUNE_Q_DISP
+		limit = 2047;
+		#else
 		limit = 255;
+		#endif
 		mutex_unlock(&bl_level_limit_mutex);
 
 		if (current_level != 0) {
@@ -348,10 +357,17 @@ int mt65xx_leds_brightness_set(enum mt65xx_led_type type,
 	if (type < 0 || type >= MT65XX_LED_TYPE_TOTAL)
 		return -1;
 
+	#ifdef CONFIG_HATSUNE_Q_DISP
+	if (level > LED_2047)
+		level = LED_2047;
+	else if (level < 0)
+		level = 0;
+	#else
 	if (level > LED_FULL)
 		level = LED_FULL;
 	else if (level < 0)
 		level = 0;
+	#endif
 
 #ifdef CONFIG_BACKLIGHT_SUPPORT_LP8557
 	retval = gpio_request(I2C_SET_FOR_BACKLIGHT, "i2c_set_for_backlight");
@@ -762,7 +778,11 @@ static int mt65xx_leds_probe(struct platform_device *pdev)
 #ifdef CONTROL_BL_TEMPERATURE
 
 	last_level = 0;
+	#ifdef CONFIG_HATSUNE_Q_DISP
+	limit = 2047;
+	#else
 	limit = 255;
+	#endif
 	limit_flag = 0;
 	current_level = 0;
 	LEDS_DRV_DEBUG
