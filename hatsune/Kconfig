@@ -1,0 +1,11 @@
+menu "Display"
+
+config HATSUNE_Q_DISP
+     bool "change limit from 255 to 2047 for brightness"
+     default n
+     help
+     Kalau ROM masih ada masalah brightness, coba set Y config ini, mungkin bisa bantu.
+     Android Q harus sih.
+     file "android.hardware.light@2.0-service-mediatek" required for GSI, check repo release.
+
+endmenu
