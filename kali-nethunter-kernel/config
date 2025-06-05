@@ -140,7 +140,7 @@ DEBIAN_DEPEND="axel bc binutils-aarch64-linux-gnu build-essential ccache curl de
 SUSE_DEPEND="axel bc ccache curl dtc pandoc libncurses6 lynx lz4 make ncurses-devel newt patch python-base fakeroot xz zip"
 
 # Preferred target for make [menu|n]config - "menuconfig" is default but "nconfig" can be used if keymappings are off
-CONFIG_TOOL=menuconfig
+CONFIG_TOOL=nconfig
 
 # Additional compiler arguments
 MAKE_ARGS=""
