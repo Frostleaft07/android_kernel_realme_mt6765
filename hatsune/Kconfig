@@ -9,3 +9,14 @@ config HATSUNE_Q_DISP
      file "android.hardware.light@2.0-service-mediatek" required for GSI, check repo release.
 
 endmenu
+
+menu  "Selinux"
+
+config KERNEL_ALWAYS_PERMISSIVE_MODE
+     bool "make kernel always permissive mode"
+     default n
+     help
+     This option for always kernel in permissive mode,
+     when u build KernelSU or Apatch this option is recommended.
+
+endmenu
