@@ -20,3 +20,13 @@ config KERNEL_ALWAYS_PERMISSIVE_MODE
      when u build KernelSU or Apatch this option is recommended.
 
 endmenu
+
+menu "Fix KernelSU"
+
+config FIX_BUGS_KSU
+     bool "fix bugs ksu"
+     default n
+     help
+     nyalain ini kalau kernelsu bug habis flash module, bootloop dll.
+
+endmenu
