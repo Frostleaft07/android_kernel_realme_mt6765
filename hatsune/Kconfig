@@ -2,7 +2,7 @@ menu "Display"
 
 config HATSUNE_Q_DISP
      bool "change limit from 255 to 2047 for brightness"
-     default n
+     default y
      help
      Kalau ROM masih ada masalah brightness, coba set Y config ini, mungkin bisa bantu.
      Android Q harus sih.
