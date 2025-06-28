@@ -21,7 +21,7 @@
 #include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
-
+#define update_time(id) usb_boost_update_time(id)
 #include "usb_boost.h"
 #define USB_BOOST_CLASS_NAME "usb_boost"
 enum{
