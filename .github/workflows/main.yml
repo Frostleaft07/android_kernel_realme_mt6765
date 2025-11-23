@@ -1,0 +1,103 @@
+name: Endfield
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'select branch or id commit'
+        required: true
+        default: 'wip'
+        type: string
+      localversion:
+        description: 'Custom LOCALVERSION (e.g., -MyKernel)'
+        required: true
+        default: '-Endfield 🪐'
+        type: string
+      defconfig:
+        description: 'pilih defconfig lain kalo mau (exm. nethunter)'
+        required: true
+        default: 'endfield_defconfig'
+        type: string
+      build_user:
+        description: 'set user (xxx@host)'
+        required: true
+        default: 'Frostleaft07'
+        type: string
+      build_host:
+        description: 'set host (user@xxx)'
+        required: true
+        default: 'Darkness'
+        type: string
+
+
+env:
+  KBUILD_BUILD_USER: ${{ github.event.inputs.build_user }}
+  KBUILD_BUILD_HOST: ${{ github.event.inputs.build_host }}
+  LOCALVERSION: ${{ github.event.inputs.localversion }}
+  TZ: Asia/Jakarta
+  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.branch }}
+        fetch-depth: 1
+
+    - name: Setup Environment
+      run: |
+        echo "Build User: $KBUILD_BUILD_USER"
+        echo "Build Host: $KBUILD_BUILD_HOST"
+        echo "DATE=$(date +%Y-%m-%d-%H-%M-%S)" >> $GITHUB_ENV
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 -b android10-release
+        wget https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+archive/3857008389202edac32d57008bb8c99d2c957f9d/clang-r383902.tar.gz
+        mkdir clang
+        tar -xzf clang-r383902.tar.gz -C clang/
+        rm clang-r383902.tar.gz
+        echo "$GITHUB_WORKSPACE/clang/bin:$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin:/usr/bin:/bin" >> $GITHUB_PATH
+        sed -i -E 's/\bpython2\b ?//g; s/  +/ /g' package
+        bash package
+     
+    - name: check clang
+      run: |
+       clang -v
+
+    - name: Set Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+          swap-size-gb: 5
+
+    - name: Build Kernel
+      run: |
+        make CC=clang ARCH=arm64 O=~/out ${{ github.event.inputs.defconfig }}
+        echo "n" | make CC=clang ARCH=arm64 O=~/out -j$(nproc) \
+          HEADER_ARCH=arm64 \
+          SUBARCH=arm64 \
+          LD=ld.lld \
+          AR=llvm-ar \
+          NM=llvm-nm \
+          STRIP=llvm-strip \
+          READELF=llvm-readelf \
+          CROSS_COMPILE=aarch64-linux-android- \
+          CLANG_TRIPLE=aarch64-linux-gnu-
+
+    - name: anykernel ~ zipping
+      run: |
+         ANYKERNEL=$GITHUB_WORKSPACE/kali-nethunter-kernel/anykernel3
+         mv ~/out/arch/arm64/boot/Image.gz $ANYKERNEL
+         mkdir -p $ANYKERNEL/modules/system/lib/modules
+         find ~/out -name "*.ko" -exec mv {} $ANYKERNEL/modules/system/lib/modules/ \;
+         cd $ANYKERNEL
+         zip -r9 $ZIP *
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          kali-nethunter-kernel/anykernel3/*.zip
+        name: ${{ github.event.inputs.kernelsu_variant }}-${{ github.run_id }}
+        tag_name: ${{ github.run_id }}
+        token: ${{ secrets.MY_TOKEN }}
