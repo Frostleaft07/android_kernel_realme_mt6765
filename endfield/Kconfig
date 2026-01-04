@@ -14,6 +14,10 @@ config OPPO_FINGERPRINT_PLATFORM
      int
      default 6765
 
+config OPPO_BSP_SECCOM_PLATFORM
+     int
+     default 6765
+
 endmenu
 
 endmenu
