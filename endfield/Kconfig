@@ -10,6 +10,10 @@ config HATSUNE_Q_DISP
      Android Q recommended for fix low brightness.
      file "android.hardware.light@2.0-service-mediatek" required for GSI, check repo release.
 
+config OPPO_FINGERPRINT_PLATFORM
+     int
+     default 6765
+
 endmenu
 
 endmenu
