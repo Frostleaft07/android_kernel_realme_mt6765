@@ -57,13 +57,8 @@ jobs:
         mkdir clang
         tar -xzf clang-r383902.tar.gz -C clang/
         rm clang-r383902.tar.gz
-        echo "$GITHUB_WORKSPACE/clang/bin:$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin:/usr/bin:/bin" >> $GITHUB_PATH
         sed -i -E 's/\bpython2\b ?//g; s/  +/ /g' package
         bash package
-     
-    - name: check clang
-      run: |
-       clang -v
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
@@ -72,15 +67,11 @@ jobs:
 
     - name: Build Kernel
       run: |
-        make CC=clang ARCH=arm64 O=~/out ${{ github.event.inputs.defconfig }}
-        echo "n" | make CC=clang ARCH=arm64 O=~/out -j$(nproc) \
+        C=$(pwd)/clang/bin
+        make CC=$C/clang ARCH=arm64 O=~/out ${{ github.event.inputs.defconfig }}
+        echo "n" | make CC=$C/clang ARCH=arm64 O=~/out -j$(nproc) \
           HEADER_ARCH=arm64 \
           SUBARCH=arm64 \
-          LD=ld.lld \
-          AR=llvm-ar \
-          NM=llvm-nm \
-          STRIP=llvm-strip \
-          READELF=llvm-readelf \
           CROSS_COMPILE=aarch64-linux-android- \
           CLANG_TRIPLE=aarch64-linux-gnu-
 
